@@ -6,7 +6,8 @@ import lombok.Getter;
 public enum UserStatus {
     ACTIVE(1, "Active"),
     LOCKED(2, "Locked"),
-    BANNED(3, "Banner");
+    BANNED(3, "Banner"),
+    PENDING(4, "Pending");
 
     private final int code;
     private final String description;

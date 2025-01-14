@@ -1,10 +1,13 @@
 package com.example.api_sell_clothes_v1.Service;
 
 import com.example.api_sell_clothes_v1.Entity.Email;
+import com.example.api_sell_clothes_v1.Entity.Users;
 import com.example.api_sell_clothes_v1.Repository.EmailRepository;
 import com.example.api_sell_clothes_v1.Utils.OTPUtils;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -25,44 +28,49 @@ public class EmailService {
 
     @Autowired
     private TemplateEngine templateEngine;
-
+    private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 
     public void sendOtpWithOTP(String recipientEmail, String username, String otp) {
-        // Tạo Context để truyền dữ liệu cho mẫu Thymeleaf
-        Context context = new Context();
-        context.setVariable("username", username);
-        context.setVariable("otp", otp);
-
-        // Chuyển mẫu Thymeleaf thành HTML
-        String emailContent = templateEngine.process("Mail/emailTemplate", context);
-
-        // Tạo email và lưu OTP vào cơ sở dữ liệu (không lưu body của email nữa)
-        Email email = new Email();
-        email.setRecipientEmail(recipientEmail);
-        email.setSubject("Your OTP Code");
-        email.setOtp(otp);  // Lưu mã OTP thay vì toàn bộ body
-        email.setSentAt(LocalDateTime.now());
-        email.setSent(false);
-        emailRepository.save(email);
-
         try {
-            // Gửi email với nội dung HTML
+            // Log trước khi xử lý template
+            log.info("Processing email template for user: {}", username);
+
+            Context context = new Context();
+            context.setVariable("username", username);
+            context.setVariable("otp", otp);
+
+            String emailContent = templateEngine.process("Mail/emailTemplate", context);
+
+            // Log sau khi xử lý template
+            log.info("Email content generated successfully");
+
+            Users users = new Users();
+
+
+            Email email = new Email();
+            email.setRecipientEmail(recipientEmail);
+            email.setSubject("AURAS");
+            email.setOtp(otp);
+            email.setSentAt(LocalDateTime.now());
+            email.setSent(false);
+            emailRepository.save(email);
+
             MimeMessage mimeMessage = emailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true);
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            helper.setFrom("sonphaman5@gmail.com"); // Thêm địa chỉ người gửi
             helper.setTo(recipientEmail);
             helper.setSubject("Your OTP Code");
-            helper.setText(emailContent, true);  // Gửi nội dung HTML (chứa OTP)
+            helper.setText(emailContent, true);
 
-            // Gửi email
             emailSender.send(mimeMessage);
 
-            // Cập nhật trạng thái email đã gửi
+            log.info("Email sent successfully to: {}", recipientEmail);
+
             email.setSent(true);
             emailRepository.save(email);
         } catch (MessagingException e) {
-            // Nếu có lỗi khi gửi, lưu lại thông báo lỗi
-            email.setErrorMessage(e.getMessage());
-            emailRepository.save(email);
+            log.error("Error sending email: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to send OTP: " + e.getMessage());
         }
     }
 

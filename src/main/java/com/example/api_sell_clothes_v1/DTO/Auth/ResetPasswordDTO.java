@@ -14,15 +14,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ResetPasswordDTO {
-    @NotBlank(message = "Token is required")
-    private String token;
-
-    @NotBlank(message = "New password is required")
-    @Size(min = 6, max = 32, message = "Password must be between 6 and 32 characters")
-    @Pattern(regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=]).*$",
-            message = "Password must contain at least one digit, one lowercase, one uppercase, and one special character")
+    private String email;
     private String newPassword;
-
-    @NotBlank(message = "Password confirmation is required")
     private String confirmPassword;
+    private String otp;
 }

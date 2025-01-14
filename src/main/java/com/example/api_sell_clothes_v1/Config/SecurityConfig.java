@@ -1,7 +1,6 @@
 package com.example.api_sell_clothes_v1.Config;
 
-
-
+import com.example.api_sell_clothes_v1.Constants.*;
 import com.example.api_sell_clothes_v1.Security.CustomUserDetailsService;
 import com.example.api_sell_clothes_v1.Security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +13,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +22,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 
 import java.util.Arrays;
 import java.util.List;
@@ -35,25 +36,92 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final CustomUserDetailsService userDetailsService;
 
-    private static final String[] PUBLIC_URLS = {
-            "/api/v1/auth/**",
-            "/api/v1/public/**",
-    };
+    /**
+     * Configure endpoint permissions for Product management
+     */
+    private void configureProductEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.PRODUCT_ENDPOINTS.forEach((endpoint, permission) ->
+                auth.requestMatchers(endpoint).hasAuthority(permission)
+        );
+    }
+
+    /**
+     * Configure endpoint permissions for Order management
+     */
+    private void configureOrderEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.ORDER_ENDPOINTS.forEach((endpoint, permission) ->
+                auth.requestMatchers(endpoint).hasAuthority(permission)
+        );
+    }
+
+    /**
+     * Configure endpoint permissions for User management
+     */
+    private void configureUserEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.USER_ENDPOINTS.forEach((endpoint, permission) ->
+                auth.requestMatchers(endpoint).hasAuthority(permission)
+        );
+    }
+
+    /**
+     * Configure endpoint permissions for Category management
+     */
+    private void configureCategoryEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.CATEGORY_ENDPOINTS.forEach((endpoint, permission) ->
+                auth.requestMatchers(endpoint).hasAuthority(permission)
+        );
+    }
+
+    /**
+     * Configure endpoint permissions for Review management
+     */
+    private void configureReviewEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.REVIEW_ENDPOINTS.forEach((endpoint, permission) ->
+                auth.requestMatchers(endpoint).hasAuthority(permission)
+        );
+    }
+
+    /**
+     * Configure basic security settings
+     */
+    private void configureBasicSecurity(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        auth.requestMatchers(SecurityUrlConstants.PUBLIC_URLS).permitAll()
+                .requestMatchers(SecurityUrlConstants.ADMIN_URLS).hasRole(RoleConstants.ROLE_ADMIN)
+                .requestMatchers(SecurityUrlConstants.USER_URLS)
+                .hasAnyRole(RoleConstants.ROLE_CUSTOMER, RoleConstants.ROLE_ADMIN);
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
+                // Disable CSRF
+                .csrf(AbstractHttpConfigurer::disable)
+
+                // Enable CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(PUBLIC_URLS).permitAll()
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/user/**").hasAnyRole("USER", "ADMIN")
-                        .anyRequest().authenticated()
+
+                // Configure authorization
+                .authorizeHttpRequests(auth -> {
+                    // Configure basic security settings
+                    configureBasicSecurity(auth);
+
+                    // Configure detailed endpoint permissions
+                    configureProductEndpoints(auth);
+                    configureOrderEndpoints(auth);
+                    configureUserEndpoints(auth);
+                    configureCategoryEndpoints(auth);
+                    configureReviewEndpoints(auth);
+
+                    // Any other request needs authentication
+                    auth.anyRequest().authenticated();
+                })
+
+                // Configure session management
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
+
+                // Configure authentication
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -81,15 +149,29 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "http://localhost:8080"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
-        configuration.setAllowCredentials(true);
-        configuration.setExposedHeaders(List.of("Authorization"));
-        configuration.setMaxAge(3600L);
 
+        // Set allowed origins
+        configuration.setAllowedOrigins(Arrays.asList(CorsConstants.ALLOWED_ORIGINS));
+
+        // Set allowed methods
+        configuration.setAllowedMethods(Arrays.asList(CorsConstants.ALLOWED_METHODS));
+
+        // Set allowed headers
+        configuration.setAllowedHeaders(Arrays.asList(CorsConstants.ALLOWED_HEADERS));
+
+        // Allow credentials
+        configuration.setAllowCredentials(true);
+
+        // Set exposed headers
+        configuration.setExposedHeaders(List.of(JwtConstants.HEADER_STRING));
+
+        // Set max age
+        configuration.setMaxAge(CorsConstants.MAX_AGE);
+
+        // Create URL based CORS configuration source
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
 }

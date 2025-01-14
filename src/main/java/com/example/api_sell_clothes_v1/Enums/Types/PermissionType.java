@@ -1,6 +1,6 @@
 package com.example.api_sell_clothes_v1.Enums.Types;
 
-import com.example.api_sell_clothes_v1.Enums.Constants.PermissionConstants;
+import com.example.api_sell_clothes_v1.Constants.PermissionConstants;
 import lombok.Getter;
 
 @Getter
