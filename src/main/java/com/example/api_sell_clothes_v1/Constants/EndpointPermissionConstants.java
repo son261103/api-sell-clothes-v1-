@@ -7,6 +7,45 @@ import java.util.Map;
 
 public class EndpointPermissionConstants {
 
+    // Add this to your EndpointPermissionConstants class
+    public static final Map<String, String> PERMISSION_ENDPOINTS = new HashMap<>() {{
+        put(ApiPatternConstants.API_PERMISSIONS + ApiPatternConstants.PATTERN_CREATE,
+                PermissionType.CREATE_PERMISSION.getCodeName());
+        put(ApiPatternConstants.API_PERMISSIONS + ApiPatternConstants.PATTERN_EDIT,
+                PermissionType.EDIT_PERMISSION.getCodeName());
+        put(ApiPatternConstants.API_PERMISSIONS + ApiPatternConstants.PATTERN_DELETE,
+                PermissionType.DELETE_PERMISSION.getCodeName());
+        put(ApiPatternConstants.API_PERMISSIONS + ApiPatternConstants.PATTERN_VIEW,
+                PermissionType.VIEW_PERMISSION.getCodeName());
+        put(ApiPatternConstants.API_PERMISSIONS + ApiPatternConstants.PATTERN_LIST,
+                PermissionType.VIEW_PERMISSION.getCodeName());
+        put(ApiPatternConstants.API_PERMISSIONS + "/group/**",
+                PermissionType.VIEW_PERMISSION.getCodeName());
+        put(ApiPatternConstants.API_PERMISSIONS + "/check-exists",
+                PermissionType.VIEW_PERMISSION.getCodeName());
+    }};
+
+    // Add this to your EndpointRoleConstants class
+    public static final Map<String, String> ROLE_ENDPOINTS = new HashMap<>() {{
+        put(ApiPatternConstants.API_ROLES + ApiPatternConstants.PATTERN_CREATE,
+                PermissionType.CREATE_ROLE.getCodeName());
+        put(ApiPatternConstants.API_ROLES + ApiPatternConstants.PATTERN_EDIT,
+                PermissionType.EDIT_ROLE.getCodeName());
+        put(ApiPatternConstants.API_ROLES + ApiPatternConstants.PATTERN_DELETE,
+                PermissionType.DELETE_ROLE.getCodeName());
+        put(ApiPatternConstants.API_ROLES + ApiPatternConstants.PATTERN_VIEW,
+                PermissionType.VIEW_ROLE.getCodeName());
+        put(ApiPatternConstants.API_ROLES + ApiPatternConstants.PATTERN_LIST,
+                PermissionType.VIEW_ROLE.getCodeName());
+        put(ApiPatternConstants.API_ROLES + "/{roleId}/permissions/**",
+                PermissionType.EDIT_ROLE.getCodeName());
+        put(ApiPatternConstants.API_ROLES + "/check-exists",
+                PermissionType.VIEW_ROLE.getCodeName());
+        put(ApiPatternConstants.API_ROLES + "/name/**",
+                PermissionType.VIEW_ROLE.getCodeName());
+    }};
+
+
     // Product endpoint permissions
     public static final Map<String, String> PRODUCT_ENDPOINTS = new HashMap<>() {{
         put(ApiPatternConstants.API_PRODUCTS + ApiPatternConstants.PATTERN_ADD,

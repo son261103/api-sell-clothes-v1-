@@ -37,6 +37,26 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final CustomUserDetailsService userDetailsService;
 
+
+    /**
+     * Configure endpoint permissions for Permission management
+     */
+    private void configurePermissionEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.PERMISSION_ENDPOINTS.forEach((endpoint, permission) ->
+                auth.requestMatchers(endpoint).hasAuthority(permission)
+        );
+    }
+
+    /**
+     * Configure endpoint permissions for Role management
+     */
+    private void configureRoleEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.ROLE_ENDPOINTS.forEach((endpoint, permission) ->
+                auth.requestMatchers(endpoint).hasAuthority(permission)
+        );
+    }
+
+
     /**
      * Configure endpoint permissions for Product management
      */
@@ -107,11 +127,14 @@ public class SecurityConfig {
                     configureBasicSecurity(auth);
 
                     // Configure detailed endpoint permissions
+                    configurePermissionEndpoints(auth);
+                    configureRoleEndpoints(auth);
                     configureProductEndpoints(auth);
                     configureOrderEndpoints(auth);
                     configureUserEndpoints(auth);
                     configureCategoryEndpoints(auth);
                     configureReviewEndpoints(auth);
+
 
                     // Any other request needs authentication
                     auth.anyRequest().authenticated();

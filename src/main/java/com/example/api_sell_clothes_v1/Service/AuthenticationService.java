@@ -58,11 +58,6 @@ public class AuthenticationService {
             Users user = userRepository.findByLoginId(request.getLoginId())
                     .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-            // Kiểm tra trạng thái user
-            if (user.getStatus() != UserStatus.ACTIVE) {
-                throw new DisabledException("User account is not active");
-            }
-
             // Tạo custom user details
             CustomUserDetails userDetails = new CustomUserDetails(user, authorityService.getAuthorities(user));
 
@@ -96,11 +91,16 @@ public class AuthenticationService {
                     .permissions(permissions)
                     .build();
 
-        } catch (DisabledException e) {
-            log.error("Account is disabled: {}", request.getLoginId());
-            throw new DisabledException("Account is disabled");
         } catch (AuthenticationException e) {
             log.error("Authentication failed for user: {}", request.getLoginId());
+
+            // Kiểm tra và log chi tiết lỗi nhưng vẫn trả về thông báo chung
+            Users user = userRepository.findByLoginId(request.getLoginId()).orElse(null);
+            if (user != null && user.getStatus() != UserStatus.ACTIVE) {
+                log.error("User status is: {}", user.getStatus());
+            }
+
+            // Luôn trả về thông báo chung cho mọi trường hợp lỗi
             throw new BadCredentialsException("Invalid username/password");
         }
     }
@@ -207,11 +207,11 @@ public class AuthenticationService {
             }
 
             if (user.getStatus() == UserStatus.BANNED){
-                throw new RuntimeException("User is banned");
+                throw new RuntimeException("account has been banned");
             }
 
             if (user.getStatus() == UserStatus.LOCKED){
-                throw new RuntimeException("User is locked");
+                throw new RuntimeException("account has been locked");
             }
 
             // Xóa OTP cũ nếu có

@@ -13,5 +13,7 @@ public interface PermissionRepository extends JpaRepository<Permissions, Long> {
 
     List<Permissions> findAllByCodeNameIn(List<String> codeNames);
 
-    boolean existsByCodeName(String codeName);
+    List<Permissions> findByGroupName(String groupName);
+
+    boolean existsByName(String name);
 }
