@@ -47,42 +47,53 @@ public class InitializationService {
     @Transactional
     protected void createDefaultPermissions() {
         try {
-            for (PermissionType permissionType : PermissionType.values()) {
-                if (!permissionRepository.existsByCodeName(permissionType.getCode())) {
-                    Permissions permission = Permissions.builder()
-                            .name(permissionType.getName())
-                            .codeName(permissionType.getCode())
-                            .description(permissionType.getDescription())
-                            .groupName(permissionType.getGroupName())
-                            .createdAt(LocalDateTime.now())
-                            .build();
-                    permissionRepository.save(permission);
-                    log.info("Created permission {} successfully", permissionType.getCode());
+            // Lấy tất cả các quyền hiện có trong cơ sở dữ liệu
+            List<Permissions> existingPermissions = permissionRepository.findAll();
+
+            // Lấy vai trò admin
+            Optional<Roles> adminRoleOpt = roleRepository.findByName(RoleType.ROLE_ADMIN.getCode());
+            if (adminRoleOpt.isEmpty()) {
+                log.error("Admin role not found");
+                return; // Nếu không tìm thấy vai trò admin, dừng lại
+            }
+            Roles adminRole = adminRoleOpt.get();
+
+            // Duyệt qua tất cả các quyền trong cơ sở dữ liệu và kiểm tra xem quyền đã được gán cho admin chưa
+            for (Permissions permission : existingPermissions) {
+                if (!adminRole.getPermissions().contains(permission)) {
+                    // Nếu quyền chưa được gán cho admin, gán quyền cho vai trò admin
+                    adminRole.getPermissions().add(permission);
+                    roleRepository.save(adminRole);
+                    log.info("Assigned permission {} to admin role", permission.getCodeName());
+                } else {
+                    log.info("Permission {} is already assigned to admin role", permission.getCodeName());
                 }
             }
+
         } catch (Exception e) {
-            log.error("Error creating default permissions: ", e);
+            log.error("Error while assigning permissions to admin role: ", e);
             throw e;
         }
     }
 
+
     @Transactional
     protected void createDefaultRoles() {
         try {
-            if (!roleRepository.existsByName(RoleType.ROLE_ADMIN.name())) {
+            if (!roleRepository.existsByName(RoleType.ROLE_ADMIN.getCode())) {
                 Roles adminRole = new Roles();
-                adminRole.setName(RoleType.ROLE_ADMIN.name());
-                adminRole.setDescription("Administrator role");
+                adminRole.setName(RoleType.ROLE_ADMIN.getCode());
+                adminRole.setDescription(RoleType.ROLE_ADMIN.getDescription());
                 adminRole.setCreatedAt(LocalDateTime.now());
                 adminRole.setUpdatedAt(LocalDateTime.now());
                 roleRepository.save(adminRole);
                 log.info("Created admin role successfully");
             }
 
-            if (!roleRepository.existsByName(RoleType.ROLE_CUSTOMER.name())) {
+            if (!roleRepository.existsByName(RoleType.ROLE_CUSTOMER.getCode())) {
                 Roles customerRole = new Roles();
-                customerRole.setName(RoleType.ROLE_CUSTOMER.name());
-                customerRole.setDescription("Customer role");
+                customerRole.setName(RoleType.ROLE_CUSTOMER.getCode());
+                customerRole.setDescription(RoleType.ROLE_CUSTOMER.getDescription());
                 customerRole.setCreatedAt(LocalDateTime.now());
                 customerRole.setUpdatedAt(LocalDateTime.now());
                 roleRepository.save(customerRole);
@@ -98,7 +109,7 @@ public class InitializationService {
     protected void assignPermissionsToRoles() {
         try {
             // Get admin role
-            Optional<Roles> adminRoleOpt = roleRepository.findByName(RoleType.ROLE_ADMIN.name());
+            Optional<Roles> adminRoleOpt = roleRepository.findByName(RoleType.ROLE_ADMIN.getCode());
             if (adminRoleOpt.isPresent()) {
                 Roles adminRole = adminRoleOpt.get();
                 // Get all permissions
@@ -109,7 +120,7 @@ public class InitializationService {
             }
 
             // Get customer role - assign specific permissions if needed
-            Optional<Roles> customerRoleOpt = roleRepository.findByName(RoleType.ROLE_CUSTOMER.name());
+            Optional<Roles> customerRoleOpt = roleRepository.findByName(RoleType.ROLE_CUSTOMER.getCode());
             if (customerRoleOpt.isPresent()) {
                 // Add customer-specific permissions here if needed
                 log.info("Customer role permissions set");
@@ -125,7 +136,7 @@ public class InitializationService {
         try {
             if (!userRepository.existsByUsername("admin")) {
                 // Get admin role
-                Roles adminRole = roleRepository.findByName(RoleType.ROLE_ADMIN.name())
+                Roles adminRole = roleRepository.findByName(RoleType.ROLE_ADMIN.getCode())
                         .orElseThrow(() -> new RuntimeException("Admin role not found"));
 
                 // Create admin user

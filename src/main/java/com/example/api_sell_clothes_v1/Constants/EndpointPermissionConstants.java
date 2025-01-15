@@ -1,5 +1,7 @@
 package com.example.api_sell_clothes_v1.Constants;
 
+import com.example.api_sell_clothes_v1.Enums.Types.PermissionType;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -8,74 +10,74 @@ public class EndpointPermissionConstants {
     // Product endpoint permissions
     public static final Map<String, String> PRODUCT_ENDPOINTS = new HashMap<>() {{
         put(ApiPatternConstants.API_PRODUCTS + ApiPatternConstants.PATTERN_ADD,
-                PermissionConstants.ADD_PRODUCT);
+                PermissionType.ADD_PRODUCT.getCodeName());
         put(ApiPatternConstants.API_PRODUCTS + ApiPatternConstants.PATTERN_EDIT,
-                PermissionConstants.EDIT_PRODUCT);
+                PermissionType.EDIT_PRODUCT.getCodeName());
         put(ApiPatternConstants.API_PRODUCTS + ApiPatternConstants.PATTERN_DELETE,
-                PermissionConstants.DELETE_PRODUCT);
+                PermissionType.DELETE_PRODUCT.getCodeName());
         put(ApiPatternConstants.API_PRODUCTS + ApiPatternConstants.PATTERN_VIEW,
-                PermissionConstants.VIEW_PRODUCT);
+                PermissionType.VIEW_PRODUCT.getCodeName());
         put(ApiPatternConstants.API_PRODUCTS + ApiPatternConstants.PATTERN_LIST,
-                PermissionConstants.VIEW_PRODUCT);
+                PermissionType.VIEW_PRODUCT.getCodeName());
     }};
 
     // Order endpoint permissions
     public static final Map<String, String> ORDER_ENDPOINTS = new HashMap<>() {{
         put(ApiPatternConstants.API_ORDERS + ApiPatternConstants.PATTERN_CREATE,
-                PermissionConstants.CREATE_ORDER);
+                PermissionType.CREATE_ORDER.getCodeName());
         put(ApiPatternConstants.API_ORDERS + ApiPatternConstants.PATTERN_EDIT,
-                PermissionConstants.EDIT_ORDER);
+                PermissionType.EDIT_ORDER.getCodeName());
         put(ApiPatternConstants.API_ORDERS + ApiPatternConstants.PATTERN_DELETE,
-                PermissionConstants.DELETE_ORDER);
+                PermissionType.DELETE_ORDER.getCodeName());
         put(ApiPatternConstants.API_ORDERS + ApiPatternConstants.PATTERN_VIEW,
-                PermissionConstants.VIEW_ORDER);
+                PermissionType.VIEW_ORDER.getCodeName());
         put(ApiPatternConstants.API_ORDERS + ApiPatternConstants.PATTERN_LIST,
-                PermissionConstants.VIEW_ORDER);
+                PermissionType.VIEW_ORDER.getCodeName());
     }};
 
     // User endpoint permissions
     public static final Map<String, String> USER_ENDPOINTS = new HashMap<>() {{
         put(ApiPatternConstants.API_USERS + ApiPatternConstants.PATTERN_CREATE,
-                PermissionConstants.CREATE_USER);
+                PermissionType.CREATE_CUSTOMER.getCodeName());
         put(ApiPatternConstants.API_USERS + ApiPatternConstants.PATTERN_EDIT,
-                PermissionConstants.EDIT_USER);
+                PermissionType.EDIT_CUSTOMER.getCodeName());
         put(ApiPatternConstants.API_USERS + ApiPatternConstants.PATTERN_DELETE,
-                PermissionConstants.DELETE_USER);
+                PermissionType.DELETE_CUSTOMER.getCodeName());
         put(ApiPatternConstants.API_USERS + ApiPatternConstants.PATTERN_VIEW,
-                PermissionConstants.VIEW_USER);
+                PermissionType.VIEW_CUSTOMER.getCodeName());
         put(ApiPatternConstants.API_USERS + ApiPatternConstants.PATTERN_LIST,
-                PermissionConstants.VIEW_USER);
+                PermissionType.VIEW_CUSTOMER.getCodeName());
     }};
 
     // Category endpoint permissions
     public static final Map<String, String> CATEGORY_ENDPOINTS = new HashMap<>() {{
         put(ApiPatternConstants.API_CATEGORIES + ApiPatternConstants.PATTERN_CREATE,
-                PermissionConstants.CREATE_CATEGORY);
+                PermissionType.CREATE_CATEGORY.getCodeName());
         put(ApiPatternConstants.API_CATEGORIES + ApiPatternConstants.PATTERN_EDIT,
-                PermissionConstants.EDIT_CATEGORY);
+                PermissionType.EDIT_CATEGORY.getCodeName());
         put(ApiPatternConstants.API_CATEGORIES + ApiPatternConstants.PATTERN_DELETE,
-                PermissionConstants.DELETE_CATEGORY);
+                PermissionType.DELETE_CATEGORY.getCodeName());
         put(ApiPatternConstants.API_CATEGORIES + ApiPatternConstants.PATTERN_VIEW,
-                PermissionConstants.VIEW_CATEGORY);
+                PermissionType.VIEW_CATEGORY.getCodeName());
         put(ApiPatternConstants.API_CATEGORIES + ApiPatternConstants.PATTERN_LIST,
-                PermissionConstants.VIEW_CATEGORY);
+                PermissionType.VIEW_CATEGORY.getCodeName());
         put(ApiPatternConstants.API_CATEGORIES + "/sub-categories/**",
-                PermissionConstants.VIEW_CATEGORY);
+                PermissionType.VIEW_CATEGORY.getCodeName());
         put(ApiPatternConstants.API_CATEGORIES + "/parent-categories",
-                PermissionConstants.VIEW_CATEGORY);
+                PermissionType.VIEW_CATEGORY.getCodeName());
     }};
 
     // Review endpoint permissions
     public static final Map<String, String> REVIEW_ENDPOINTS = new HashMap<>() {{
         put(ApiPatternConstants.API_REVIEWS + ApiPatternConstants.PATTERN_CREATE,
-                PermissionConstants.CREATE_REVIEW);
+                PermissionType.CREATE_REVIEW.getCodeName());
         put(ApiPatternConstants.API_REVIEWS + ApiPatternConstants.PATTERN_EDIT,
-                PermissionConstants.EDIT_REVIEW);
+                PermissionType.EDIT_REVIEW.getCodeName());
         put(ApiPatternConstants.API_REVIEWS + ApiPatternConstants.PATTERN_DELETE,
-                PermissionConstants.DELETE_REVIEW);
+                PermissionType.DELETE_REVIEW.getCodeName());
         put(ApiPatternConstants.API_REVIEWS + ApiPatternConstants.PATTERN_VIEW,
-                PermissionConstants.VIEW_REVIEW);
+                PermissionType.VIEW_REVIEW.getCodeName());
         put(ApiPatternConstants.API_REVIEWS + ApiPatternConstants.PATTERN_LIST,
-                PermissionConstants.VIEW_REVIEW);
+                PermissionType.VIEW_REVIEW.getCodeName());
     }};
 }
