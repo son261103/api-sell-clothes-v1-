@@ -1,24 +1,55 @@
 package com.example.api_sell_clothes_v1.Enums.Types;
 
-import com.example.api_sell_clothes_v1.Constants.PermissionConstants;
 import lombok.Getter;
 
 @Getter
 public enum PermissionType {
-    MANAGE_USERS("manage_users", "Quản lý người dùng", PermissionConstants.USER_MANAGEMENT_GROUP, PermissionConstants.MANAGE_USERS_DESC),
-    MANAGE_PRODUCTS("manage_products", "Quản lý sản phẩm", PermissionConstants.PRODUCT_MANAGEMENT_GROUP, PermissionConstants.MANAGE_PRODUCTS_DESC),
-    MANAGE_ORDERS("manage_orders", "Quản lý đơn hàng", PermissionConstants.ORDER_MANAGEMENT_GROUP, PermissionConstants.MANAGE_ORDERS_DESC),
-    MANAGE_ROLES("manage_roles", "Quản lý vai trò", PermissionConstants.USER_MANAGEMENT_GROUP, PermissionConstants.MANAGE_ROLES_DESC);
 
-    private final String code;
+    // Product Management Permissions
+    ADD_PRODUCT("ADD_PRODUCT", "Add Product", "Allows CUSTOMER to add a new product", "Product Management"),
+    EDIT_PRODUCT("EDIT_PRODUCT", "Edit Product", "Allows CUSTOMER to edit an existing product", "Product Management"),
+    DELETE_PRODUCT("DELETE_PRODUCT", "Delete Product", "Allows CUSTOMER to delete a product", "Product Management"),
+    VIEW_PRODUCT("VIEW_PRODUCT", "View Product", "Allows CUSTOMER to view product details", "Product Management"),
+
+    // Order Management Permissions
+    CREATE_ORDER("CREATE_ORDER", "Create Order", "Allows CUSTOMER to create new orders", "Order Management"),
+    EDIT_ORDER("EDIT_ORDER", "Edit Order", "Allows CUSTOMER to edit an existing order", "Order Management"),
+    DELETE_ORDER("DELETE_ORDER", "Delete Order", "Allows CUSTOMER to delete an order", "Order Management"),
+    VIEW_ORDER("VIEW_ORDER", "View Order", "Allows CUSTOMER to view order details", "Order Management"),
+
+    // CUSTOMER Management Permissions
+    CREATE_CUSTOMER("CREATE_CUSTOMER", "Create CUSTOMER", "Allows CUSTOMER to create new CUSTOMER accounts", "CUSTOMER Management"),
+    EDIT_CUSTOMER("EDIT_CUSTOMER", "Edit CUSTOMER", "Allows CUSTOMER to edit CUSTOMER account details", "CUSTOMER Management"),
+    DELETE_CUSTOMER("DELETE_CUSTOMER", "Delete CUSTOMER", "Allows CUSTOMER to delete CUSTOMER accounts", "CUSTOMER Management"),
+    VIEW_CUSTOMER("VIEW_CUSTOMER", "View CUSTOMER", "Allows CUSTOMER to view CUSTOMER account details", "CUSTOMER Management"),
+
+    // Category Management Permissions
+    CREATE_CATEGORY("CREATE_CATEGORY", "Create Category", "Allows CUSTOMER to create a new product category", "Category Management"),
+    EDIT_CATEGORY("EDIT_CATEGORY", "Edit Category", "Allows CUSTOMER to edit an existing product category", "Category Management"),
+    DELETE_CATEGORY("DELETE_CATEGORY", "Delete Category", "Allows CUSTOMER to delete a product category", "Category Management"),
+    VIEW_CATEGORY("VIEW_CATEGORY", "View Category", "Allows CUSTOMER to view category details", "Category Management"),
+
+    // Review Management Permissions
+    CREATE_REVIEW("CREATE_REVIEW", "Create Review", "Allows CUSTOMER to create a review for a product", "Review Management"),
+    EDIT_REVIEW("EDIT_REVIEW", "Edit Review", "Allows CUSTOMER to edit a review", "Review Management"),
+    DELETE_REVIEW("DELETE_REVIEW", "Delete Review", "Allows CUSTOMER to delete a review", "Review Management"),
+    VIEW_REVIEW("VIEW_REVIEW", "View Review", "Allows CUSTOMER to view product reviews", "Review Management");
+
+    private final String codeName;
     private final String name;
-    private final String groupName;
     private final String description;
+    private final String groupName;
 
-    PermissionType(String code, String name, String groupName, String description) {
-        this.code = code;
+    // Constructor
+    PermissionType(String codeName, String name, String description, String groupName) {
+        this.codeName = codeName;
         this.name = name;
-        this.groupName = groupName;
         this.description = description;
+        this.groupName = groupName;
+    }
+
+    @Override
+    public String toString() {
+        return "Permission{codeName='" + codeName + "', name='" + name + "', description='" + description + "', groupName='" + groupName + "'}";
     }
 }

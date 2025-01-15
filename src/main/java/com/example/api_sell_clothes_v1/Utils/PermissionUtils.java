@@ -5,47 +5,95 @@ import com.example.api_sell_clothes_v1.Enums.Types.PermissionType;
 
 public class PermissionUtils {
 
-    // Tạo quyền quản lý người dùng
-    public static Permissions createManageUsersPermission() {
+    // Tạo quyền tạo khách hàng
+    public static Permissions createCustomerPermission() {
         return Permissions.builder()
-                .permissionId(1L)
-                .name(PermissionType.MANAGE_USERS.getName())
-                .codeName(PermissionType.MANAGE_USERS.getCode())
-                .description(PermissionType.MANAGE_USERS.getDescription())
-                .groupName(PermissionType.MANAGE_USERS.getGroupName())
+                .permissionId(9L)
+                .name(PermissionType.CREATE_CUSTOMER.getName())
+                .codeName(PermissionType.CREATE_CUSTOMER.getCodeName())
+                .description(PermissionType.CREATE_CUSTOMER.getDescription())
+                .groupName(PermissionType.CREATE_CUSTOMER.getGroupName())
                 .build();
     }
 
-    // Tạo quyền quản lý sản phẩm
-    public static Permissions createManageProductsPermission() {
+
+    // Tạo quyền sửa khách hàng
+    public static Permissions updateCustomerPermission() {
         return Permissions.builder()
-                .permissionId(2L)
-                .name(PermissionType.MANAGE_PRODUCTS.getName())
-                .codeName(PermissionType.MANAGE_PRODUCTS.getCode())
-                .description(PermissionType.MANAGE_PRODUCTS.getDescription())
-                .groupName(PermissionType.MANAGE_PRODUCTS.getGroupName())
+                .permissionId(9L)
+                .name(PermissionType.EDIT_CUSTOMER.getName())
+                .codeName(PermissionType.EDIT_CUSTOMER.getCodeName())
+                .description(PermissionType.EDIT_CUSTOMER.getDescription())
+                .groupName(PermissionType.EDIT_CUSTOMER.getGroupName())
                 .build();
     }
 
-    // Tạo quyền quản lý đơn hàng
-    public static Permissions createManageOrdersPermission() {
+    // Tạo quyền xóa khách hàng
+    public static Permissions deleteCustomerPermission() {
         return Permissions.builder()
-                .permissionId(3L)
-                .name(PermissionType.MANAGE_ORDERS.getName())
-                .codeName(PermissionType.MANAGE_ORDERS.getCode())
-                .description(PermissionType.MANAGE_ORDERS.getDescription())
-                .groupName(PermissionType.MANAGE_ORDERS.getGroupName())
+                .permissionId(10L)
+                .name(PermissionType.DELETE_CUSTOMER.getName())
+                .codeName(PermissionType.DELETE_CUSTOMER.getCodeName())
+                .description(PermissionType.DELETE_CUSTOMER.getDescription())
+                .groupName(PermissionType.DELETE_CUSTOMER.getGroupName())
                 .build();
     }
 
-    // Tạo quyền quản lý vai trò
-    public static Permissions createManageRolesPermission() {
+    // Tạo quyền xem khách hàng
+    public static Permissions viewCustomerPermission() {
         return Permissions.builder()
-                .permissionId(4L)
-                .name(PermissionType.MANAGE_ROLES.getName())
-                .codeName(PermissionType.MANAGE_ROLES.getCode())
-                .description(PermissionType.MANAGE_ROLES.getDescription())
-                .groupName(PermissionType.MANAGE_ROLES.getGroupName())
+                .permissionId(11L)
+                .name(PermissionType.VIEW_CUSTOMER.getName())
+                .codeName(PermissionType.VIEW_CUSTOMER.getCodeName())
+                .description(PermissionType.VIEW_CUSTOMER.getDescription())
+                .groupName(PermissionType.VIEW_CUSTOMER.getGroupName())
+                .build();
+    }
+
+
+
+    // Tạo quyền sửa danh mục
+    public static Permissions createCategoryPermission() {
+        return Permissions.builder()
+                .permissionId(9L)
+                .name(PermissionType.CREATE_CATEGORY.getName())
+                .codeName(PermissionType.CREATE_CATEGORY.getCodeName())
+                .description(PermissionType.CREATE_CATEGORY.getDescription())
+                .groupName(PermissionType.CREATE_CATEGORY.getGroupName())
+                .build();
+    }
+
+
+    // Tạo quyền sửa danh mục
+    public static Permissions updateCategoryPermission() {
+        return Permissions.builder()
+                .permissionId(9L)
+                .name(PermissionType.EDIT_CATEGORY.getName())
+                .codeName(PermissionType.EDIT_CATEGORY.getCodeName())
+                .description(PermissionType.EDIT_CATEGORY.getDescription())
+                .groupName(PermissionType.EDIT_CATEGORY.getGroupName())
+                .build();
+    }
+
+    // Tạo quyền xóa danh mục
+    public static Permissions deleteCategoryPermission() {
+        return Permissions.builder()
+                .permissionId(10L)
+                .name(PermissionType.DELETE_CATEGORY.getName())
+                .codeName(PermissionType.DELETE_CATEGORY.getCodeName())
+                .description(PermissionType.DELETE_CATEGORY.getDescription())
+                .groupName(PermissionType.DELETE_CATEGORY.getGroupName())
+                .build();
+    }
+
+    // Tạo quyền xem danh mục
+    public static Permissions viewCategoryPermission() {
+        return Permissions.builder()
+                .permissionId(11L)
+                .name(PermissionType.VIEW_CATEGORY.getName())
+                .codeName(PermissionType.VIEW_CATEGORY.getCodeName())
+                .description(PermissionType.VIEW_CATEGORY.getDescription())
+                .groupName(PermissionType.VIEW_CATEGORY.getGroupName())
                 .build();
     }
 }

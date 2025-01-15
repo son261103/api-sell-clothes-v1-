@@ -1,24 +1,24 @@
 package com.example.api_sell_clothes_v1.Enums.Types;
 
-
-import com.example.api_sell_clothes_v1.Constants.RoleConstants;
 import lombok.Getter;
 
 @Getter
 public enum RoleType {
-    ROLE_ADMIN(RoleConstants.ROLE_ADMIN, RoleConstants.ADMIN_NAME, RoleConstants.ADMIN_DESCRIPTION),
-    ROLE_CUSTOMER(RoleConstants.ROLE_CUSTOMER, RoleConstants.CUSTOMER_NAME, RoleConstants.CUSTOMER_DESCRIPTION),
-    ROLE_MODERATOR(RoleConstants.ROLE_MODERATOR, RoleConstants.MODERATOR_NAME, RoleConstants.MODERATOR_DESCRIPTION),
-    ROLE_GUEST(RoleConstants.ROLE_GUEST, RoleConstants.GUEST_NAME, RoleConstants.GUEST_DESCRIPTION);
 
-    private final String code;
-    private final String name;
-    private final String description;
+    // Các giá trị role được gộp trực tiếp trong enum này
+    ROLE_ADMIN("ROLE_ADMIN", "Admin", "Administrator role with full permissions"),
+    ROLE_CUSTOMER("ROLE_CUSTOMER", "Customer", "Customer role with limited permissions"),
+    ROLE_MODERATOR("ROLE_MODERATOR", "Moderator", "Moderator role with permissions to manage content"),
+    ROLE_GUEST("ROLE_GUEST", "Guest", "Guest role with read-only permissions");
 
+    private final String code;        // Mã role
+    private final String name;        // Tên role
+    private final String description; // Mô tả role
+
+    // Constructor
     RoleType(String code, String name, String description) {
         this.code = code;
         this.name = name;
         this.description = description;
     }
-
 }

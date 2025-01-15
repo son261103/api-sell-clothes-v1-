@@ -1,6 +1,7 @@
 package com.example.api_sell_clothes_v1.Config;
 
 import com.example.api_sell_clothes_v1.Constants.*;
+import com.example.api_sell_clothes_v1.Enums.Types.RoleType;
 import com.example.api_sell_clothes_v1.Security.CustomUserDetailsService;
 import com.example.api_sell_clothes_v1.Security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
@@ -86,9 +87,9 @@ public class SecurityConfig {
      */
     private void configureBasicSecurity(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
         auth.requestMatchers(SecurityUrlConstants.PUBLIC_URLS).permitAll()
-                .requestMatchers(SecurityUrlConstants.ADMIN_URLS).hasRole(RoleConstants.ROLE_ADMIN)
+                .requestMatchers(SecurityUrlConstants.ADMIN_URLS).hasAuthority(RoleType.ROLE_ADMIN.getCode())
                 .requestMatchers(SecurityUrlConstants.USER_URLS)
-                .hasAnyRole(RoleConstants.ROLE_CUSTOMER, RoleConstants.ROLE_ADMIN);
+                .hasAnyAuthority(RoleType.ROLE_CUSTOMER.getCode(), RoleType.ROLE_ADMIN.getCode());
     }
 
     @Bean
