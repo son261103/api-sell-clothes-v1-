@@ -2,10 +2,12 @@ package com.example.api_sell_clothes_v1.Service;
 
 import com.example.api_sell_clothes_v1.DTO.ApiResponse;
 import com.example.api_sell_clothes_v1.DTO.Auth.*;
+import com.example.api_sell_clothes_v1.Entity.Permissions;
 import com.example.api_sell_clothes_v1.Entity.RefreshTokens;
 import com.example.api_sell_clothes_v1.Entity.Roles;
 import com.example.api_sell_clothes_v1.Entity.Users;
 import com.example.api_sell_clothes_v1.Enums.Status.UserStatus;
+import com.example.api_sell_clothes_v1.Exceptions.UserStatusException;
 import com.example.api_sell_clothes_v1.Repository.RoleRepository;
 import com.example.api_sell_clothes_v1.Repository.UserRepository;
 import com.example.api_sell_clothes_v1.Security.CustomUserDetails;
@@ -46,17 +48,34 @@ public class AuthenticationService {
     public TokenResponseDTO authenticate(LoginDTO request) {
         log.info("Attempting authentication for user: {}", request.getLoginId());
         try {
-            // Thực hiện xác thực
+            // Kiểm tra user và status trước khi xác thực
+            Users user = userRepository.findByLoginId(request.getLoginId())
+                    .orElseThrow(() -> new BadCredentialsException("Invalid username/password"));
+
+            // Kiểm tra status và trả về thông báo cụ thể
+            switch (user.getStatus()) {
+                case UserStatus.PENDING:
+                    log.error("User account is inactive: {}", request.getLoginId());
+                    throw new UserStatusException("Account has not been activated. Please check your email to activate your account.");
+                case UserStatus.BANNED:
+                    log.error("User account is banned: {}", request.getLoginId());
+                    throw new UserStatusException("The account has been permanently locked. Please contact admin for more details.");
+                case UserStatus.LOCKED:
+                    log.error("User account is locked: {}", request.getLoginId());
+                    throw new UserStatusException("Account temporarily locked. Please try again later or contact admin.");
+                case ACTIVE:
+                    break;
+                default:
+                    throw new UserStatusException("Invalid account status.");
+            }
+
+            // Thực hiện xác thực password
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             request.getLoginId(),
                             request.getPassword()
                     )
             );
-
-            // Tìm user từ database
-            Users user = userRepository.findByLoginId(request.getLoginId())
-                    .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
             // Tạo custom user details
             CustomUserDetails userDetails = new CustomUserDetails(user, authorityService.getAuthorities(user));
@@ -67,12 +86,12 @@ public class AuthenticationService {
 
             // Lấy roles và permissions
             Set<String> roles = user.getRoles().stream()
-                    .map(role -> role.getName())
+                    .map(Roles::getName)
                     .collect(Collectors.toSet());
 
             Set<String> permissions = user.getRoles().stream()
                     .flatMap(role -> role.getPermissions().stream())
-                    .map(permission -> permission.getCodeName())
+                    .map(Permissions::getCodeName)
                     .collect(Collectors.toSet());
 
             log.info("Authentication successful for user: {}", request.getLoginId());
@@ -91,20 +110,17 @@ public class AuthenticationService {
                     .permissions(permissions)
                     .build();
 
+        } catch (UserStatusException e) {
+            // Trả về thông báo cụ thể về status
+            throw e;
+        } catch (BadCredentialsException e) {
+            log.error("Invalid credentials for user: {}", request.getLoginId());
+            throw new BadCredentialsException("Thông tin đăng nhập không chính xác");
         } catch (AuthenticationException e) {
             log.error("Authentication failed for user: {}", request.getLoginId());
-
-            // Kiểm tra và log chi tiết lỗi nhưng vẫn trả về thông báo chung
-            Users user = userRepository.findByLoginId(request.getLoginId()).orElse(null);
-            if (user != null && user.getStatus() != UserStatus.ACTIVE) {
-                log.error("User status is: {}", user.getStatus());
-            }
-
-            // Luôn trả về thông báo chung cho mọi trường hợp lỗi
-            throw new BadCredentialsException("Invalid username/password");
+            throw new BadCredentialsException("Thông tin đăng nhập không chính xác");
         }
     }
-
 
 
     // Phương thức đăng ký người dùng
@@ -142,6 +158,7 @@ public class AuthenticationService {
             Roles userRole = roleRepository.findByName("ROLE_CUSTOMER")
                     .orElseThrow(() -> new RuntimeException("Default role not found"));
             newUser.getRoles().add(userRole);
+
 
             // Lưu user
             Users savedUser = userRepository.save(newUser);
@@ -206,11 +223,11 @@ public class AuthenticationService {
                 throw new RuntimeException("User is already verified");
             }
 
-            if (user.getStatus() == UserStatus.BANNED){
+            if (user.getStatus() == UserStatus.BANNED) {
                 throw new RuntimeException("account has been banned");
             }
 
-            if (user.getStatus() == UserStatus.LOCKED){
+            if (user.getStatus() == UserStatus.LOCKED) {
                 throw new RuntimeException("account has been locked");
             }
 

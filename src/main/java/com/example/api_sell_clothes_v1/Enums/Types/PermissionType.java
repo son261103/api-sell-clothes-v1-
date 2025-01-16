@@ -18,6 +18,11 @@ public enum PermissionType {
     DELETE_PERMISSION("DELETE_PERMISSION", "Delete Permission", "Allows ADMIN to delete permissions", "Permission Management"),
     VIEW_PERMISSION("VIEW_PERMISSION", "View Permission", "Allows ADMIN to view permission details", "Permission Management"),
 
+    // CUSTOMER Management Permissions
+    CREATE_CUSTOMER("CREATE_CUSTOMER", "Create CUSTOMER", "Allows CUSTOMER to create new CUSTOMER accounts", "CUSTOMER Management"),
+    EDIT_CUSTOMER("EDIT_CUSTOMER", "Edit CUSTOMER", "Allows CUSTOMER to edit CUSTOMER account details", "CUSTOMER Management"),
+    DELETE_CUSTOMER("DELETE_CUSTOMER", "Delete CUSTOMER", "Allows CUSTOMER to delete CUSTOMER accounts", "CUSTOMER Management"),
+    VIEW_CUSTOMER("VIEW_CUSTOMER", "View CUSTOMER", "Allows CUSTOMER to view CUSTOMER account details", "CUSTOMER Management"),
 
     // Product Management Permissions
     ADD_PRODUCT("ADD_PRODUCT", "Add Product", "Allows CUSTOMER to add a new product", "Product Management"),
@@ -31,11 +36,6 @@ public enum PermissionType {
     DELETE_ORDER("DELETE_ORDER", "Delete Order", "Allows CUSTOMER to delete an order", "Order Management"),
     VIEW_ORDER("VIEW_ORDER", "View Order", "Allows CUSTOMER to view order details", "Order Management"),
 
-    // CUSTOMER Management Permissions
-    CREATE_CUSTOMER("CREATE_CUSTOMER", "Create CUSTOMER", "Allows CUSTOMER to create new CUSTOMER accounts", "CUSTOMER Management"),
-    EDIT_CUSTOMER("EDIT_CUSTOMER", "Edit CUSTOMER", "Allows CUSTOMER to edit CUSTOMER account details", "CUSTOMER Management"),
-    DELETE_CUSTOMER("DELETE_CUSTOMER", "Delete CUSTOMER", "Allows CUSTOMER to delete CUSTOMER accounts", "CUSTOMER Management"),
-    VIEW_CUSTOMER("VIEW_CUSTOMER", "View CUSTOMER", "Allows CUSTOMER to view CUSTOMER account details", "CUSTOMER Management"),
 
     // Category Management Permissions
     CREATE_CATEGORY("CREATE_CATEGORY", "Create Category", "Allows CUSTOMER to create a new product category", "Category Management"),

@@ -45,6 +45,41 @@ public class EndpointPermissionConstants {
                 PermissionType.VIEW_ROLE.getCodeName());
     }};
 
+    // User endpoint permissions
+    public static final Map<String, String> USER_ENDPOINTS = new HashMap<>() {{
+        put(ApiPatternConstants.API_USERS + ApiPatternConstants.PATTERN_CREATE,
+                PermissionType.CREATE_CUSTOMER.getCodeName());
+        put(ApiPatternConstants.API_USERS + ApiPatternConstants.PATTERN_EDIT,
+                PermissionType.EDIT_CUSTOMER.getCodeName());
+        put(ApiPatternConstants.API_USERS + ApiPatternConstants.PATTERN_DELETE,
+                PermissionType.DELETE_CUSTOMER.getCodeName());
+        put(ApiPatternConstants.API_USERS + ApiPatternConstants.PATTERN_VIEW,
+                PermissionType.VIEW_CUSTOMER.getCodeName());
+        put(ApiPatternConstants.API_USERS + ApiPatternConstants.PATTERN_LIST,
+                PermissionType.VIEW_CUSTOMER.getCodeName());
+        put(ApiPatternConstants.API_USERS + "/username/**",
+                PermissionType.VIEW_CUSTOMER.getCodeName());
+        put(ApiPatternConstants.API_USERS + "/email/**",
+                PermissionType.VIEW_CUSTOMER.getCodeName());
+    }};
+
+    // Category endpoint permissions
+    public static final Map<String, String> CATEGORY_ENDPOINTS = new HashMap<>() {{
+        put(ApiPatternConstants.API_CATEGORIES + ApiPatternConstants.PATTERN_CREATE,
+                PermissionType.CREATE_CATEGORY.getCodeName());
+        put(ApiPatternConstants.API_CATEGORIES + ApiPatternConstants.PATTERN_EDIT,
+                PermissionType.EDIT_CATEGORY.getCodeName());
+        put(ApiPatternConstants.API_CATEGORIES + ApiPatternConstants.PATTERN_DELETE,
+                PermissionType.DELETE_CATEGORY.getCodeName());
+        put(ApiPatternConstants.API_CATEGORIES + ApiPatternConstants.PATTERN_VIEW,
+                PermissionType.VIEW_CATEGORY.getCodeName());
+        put(ApiPatternConstants.API_CATEGORIES + ApiPatternConstants.PATTERN_LIST,
+                PermissionType.VIEW_CATEGORY.getCodeName());
+        put(ApiPatternConstants.API_CATEGORIES + "/sub-categories/**",
+                PermissionType.VIEW_CATEGORY.getCodeName());
+        put(ApiPatternConstants.API_CATEGORIES + "/parent-categories",
+                PermissionType.VIEW_CATEGORY.getCodeName());
+    }};
 
     // Product endpoint permissions
     public static final Map<String, String> PRODUCT_ENDPOINTS = new HashMap<>() {{
@@ -72,38 +107,6 @@ public class EndpointPermissionConstants {
                 PermissionType.VIEW_ORDER.getCodeName());
         put(ApiPatternConstants.API_ORDERS + ApiPatternConstants.PATTERN_LIST,
                 PermissionType.VIEW_ORDER.getCodeName());
-    }};
-
-    // User endpoint permissions
-    public static final Map<String, String> USER_ENDPOINTS = new HashMap<>() {{
-        put(ApiPatternConstants.API_USERS + ApiPatternConstants.PATTERN_CREATE,
-                PermissionType.CREATE_CUSTOMER.getCodeName());
-        put(ApiPatternConstants.API_USERS + ApiPatternConstants.PATTERN_EDIT,
-                PermissionType.EDIT_CUSTOMER.getCodeName());
-        put(ApiPatternConstants.API_USERS + ApiPatternConstants.PATTERN_DELETE,
-                PermissionType.DELETE_CUSTOMER.getCodeName());
-        put(ApiPatternConstants.API_USERS + ApiPatternConstants.PATTERN_VIEW,
-                PermissionType.VIEW_CUSTOMER.getCodeName());
-        put(ApiPatternConstants.API_USERS + ApiPatternConstants.PATTERN_LIST,
-                PermissionType.VIEW_CUSTOMER.getCodeName());
-    }};
-
-    // Category endpoint permissions
-    public static final Map<String, String> CATEGORY_ENDPOINTS = new HashMap<>() {{
-        put(ApiPatternConstants.API_CATEGORIES + ApiPatternConstants.PATTERN_CREATE,
-                PermissionType.CREATE_CATEGORY.getCodeName());
-        put(ApiPatternConstants.API_CATEGORIES + ApiPatternConstants.PATTERN_EDIT,
-                PermissionType.EDIT_CATEGORY.getCodeName());
-        put(ApiPatternConstants.API_CATEGORIES + ApiPatternConstants.PATTERN_DELETE,
-                PermissionType.DELETE_CATEGORY.getCodeName());
-        put(ApiPatternConstants.API_CATEGORIES + ApiPatternConstants.PATTERN_VIEW,
-                PermissionType.VIEW_CATEGORY.getCodeName());
-        put(ApiPatternConstants.API_CATEGORIES + ApiPatternConstants.PATTERN_LIST,
-                PermissionType.VIEW_CATEGORY.getCodeName());
-        put(ApiPatternConstants.API_CATEGORIES + "/sub-categories/**",
-                PermissionType.VIEW_CATEGORY.getCodeName());
-        put(ApiPatternConstants.API_CATEGORIES + "/parent-categories",
-                PermissionType.VIEW_CATEGORY.getCodeName());
     }};
 
     // Review endpoint permissions
