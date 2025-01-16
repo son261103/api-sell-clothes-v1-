@@ -2,6 +2,7 @@ package com.example.api_sell_clothes_v1.Security;
 
 import com.example.api_sell_clothes_v1.Entity.Roles;
 import com.example.api_sell_clothes_v1.Entity.Users;
+import com.example.api_sell_clothes_v1.Enums.Status.UserStatus;
 import com.example.api_sell_clothes_v1.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
@@ -20,10 +21,25 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
+
     @Override
     public UserDetails loadUserByUsername(String loginId) throws UsernameNotFoundException {
         Users user = userRepository.findByLoginId(loginId)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with login ID: " + loginId));
+
+        // Kiểm tra status của user
+        switch (user.getStatus()) {
+            case UserStatus.PENDING:
+                throw new RuntimeException("Account has not been activated");
+            case UserStatus.BANNED:
+                throw new RuntimeException("account has been banned");
+            case UserStatus.LOCKED:
+                throw new RuntimeException("account has been locked");
+            case ACTIVE:
+                break;
+            default:
+                throw new RuntimeException("Invalid account status");
+        }
 
         Set<GrantedAuthority> authorities = new HashSet<>();
 

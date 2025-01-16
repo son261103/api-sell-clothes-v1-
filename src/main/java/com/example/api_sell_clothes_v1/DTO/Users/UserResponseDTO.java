@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 @Data
@@ -18,7 +19,6 @@ public class UserResponseDTO {
     private Long userId;
     private String username;
     private String email;
-    private String password;
     private String phone;
     private String avatar;
     private String lastLoginAt;

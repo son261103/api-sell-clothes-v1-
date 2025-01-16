@@ -47,31 +47,50 @@ public class InitializationService {
     @Transactional
     protected void createDefaultPermissions() {
         try {
-            // Lấy tất cả các quyền hiện có trong cơ sở dữ liệu
+            // Create permissions from PermissionType enum if they don't exist
+            for (PermissionType type : PermissionType.values()) {
+                Permissions permission = permissionRepository.findByCodeName(type.getCodeName())
+                        .orElseGet(() -> {
+                            // Create new permission if not exists
+                            Permissions newPermission = new Permissions();
+                            newPermission.setCodeName(type.getCodeName());
+                            newPermission.setName(type.getName());
+                            newPermission.setDescription(type.getDescription());
+                            newPermission.setGroupName(type.getGroupName());
+                            newPermission.setCreatedAt(LocalDateTime.now());
+                            log.info("Created new permission: {}", type.getCodeName());
+                            return permissionRepository.save(newPermission);
+                        });
+            }
+
+            // Get all permissions after creation
             List<Permissions> existingPermissions = permissionRepository.findAll();
 
-            // Lấy vai trò admin
+            // Get admin role
             Optional<Roles> adminRoleOpt = roleRepository.findByName(RoleType.ROLE_ADMIN.getCode());
-            if (adminRoleOpt.isEmpty()) {
-                log.error("Admin role not found");
-                return; // Nếu không tìm thấy vai trò admin, dừng lại
-            }
             Roles adminRole = adminRoleOpt.get();
 
-            // Duyệt qua tất cả các quyền trong cơ sở dữ liệu và kiểm tra xem quyền đã được gán cho admin chưa
+            // Initialize permissions set if null
+            if (adminRole.getPermissions() == null) {
+                adminRole.setPermissions(new HashSet<>());
+            }
+
+            // Assign permissions to admin role if not already assigned
             for (Permissions permission : existingPermissions) {
                 if (!adminRole.getPermissions().contains(permission)) {
-                    // Nếu quyền chưa được gán cho admin, gán quyền cho vai trò admin
                     adminRole.getPermissions().add(permission);
-                    roleRepository.save(adminRole);
                     log.info("Assigned permission {} to admin role", permission.getCodeName());
                 } else {
-                    log.info("Permission {} is already assigned to admin role", permission.getCodeName());
+                    log.debug("Permission {} is already assigned to admin role", permission.getCodeName());
                 }
             }
 
+            // Save admin role with updated permissions
+            roleRepository.save(adminRole);
+            log.info("Successfully updated admin role permissions");
+
         } catch (Exception e) {
-            log.error("Error while assigning permissions to admin role: ", e);
+            log.error("Error while creating and assigning permissions: ", e);
             throw e;
         }
     }
