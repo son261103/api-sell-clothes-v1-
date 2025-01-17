@@ -315,7 +315,6 @@ public class AuthenticationService {
     }
 
 
-
     public TokenResponseDTO refreshToken(RefreshTokenDTO refreshTokenDTO) {
         log.info("Processing refresh token request");
         try {
