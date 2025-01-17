@@ -8,6 +8,7 @@ import com.example.api_sell_clothes_v1.Entity.Roles;
 import com.example.api_sell_clothes_v1.Entity.Users;
 import com.example.api_sell_clothes_v1.Enums.Status.UserStatus;
 import com.example.api_sell_clothes_v1.Exceptions.UserStatusException;
+import com.example.api_sell_clothes_v1.Repository.RefreshTokenRepository;
 import com.example.api_sell_clothes_v1.Repository.RoleRepository;
 import com.example.api_sell_clothes_v1.Repository.UserRepository;
 import com.example.api_sell_clothes_v1.Security.CustomUserDetails;
@@ -43,6 +44,7 @@ public class AuthenticationService {
     private final AuthorityService authorityService;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     // Phương thức xác thực người dùng thông thường
     public TokenResponseDTO authenticate(LoginDTO request) {
@@ -262,6 +264,45 @@ public class AuthenticationService {
             throw new RuntimeException("Failed to initiate password reset: " + e.getMessage());
         }
     }
+
+    public TokenResponseDTO verifyNewAccess(RefreshTokenDTO refreshTokenDTO) {
+        log.info("Processing refresh token request");
+        try {
+            // 1. Verify refresh token
+            if (!refreshTokenService.verifyRefreshTokenForNewAccess(refreshTokenDTO.getRefreshToken())) {
+                throw new RuntimeException("Invalid refresh token");
+            }
+
+            // 2. Lấy user từ refresh token
+            RefreshTokens storedToken = refreshTokenRepository.findByRefreshToken(refreshTokenDTO.getRefreshToken()).get();
+            Users user = storedToken.getUser();
+
+            // 3. Tạo custom user details
+            CustomUserDetails userDetails = new CustomUserDetails(user, authorityService.getAuthorities(user));
+
+            // 4. Tạo access token mới
+            String newAccessToken = jwtService.generateToken(userDetails);
+
+            // 5. Build response với refresh token cũ
+            return TokenResponseDTO.builder()
+                    .accessToken(newAccessToken)
+                    .refreshToken(refreshTokenDTO.getRefreshToken()) // Giữ nguyên refresh token cũ
+                    .tokenType("Bearer")
+                    .expiresIn(jwtService.getJwtExpiration())
+                    .username(user.getUsername())
+                    .email(user.getEmail())
+                    .userId(user.getUserId())
+                    .fullName(user.getFullName())
+                    .roles(jwtService.extractRoles(newAccessToken))
+                    .permissions(jwtService.extractPermissions(newAccessToken))
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Failed to refresh token: {}", e.getMessage());
+            throw new RuntimeException("Failed to refresh token: " + e.getMessage());
+        }
+    }
+
 
     public TokenResponseDTO refreshToken(RefreshTokenDTO refreshTokenDTO) {
         log.info("Processing refresh token request");

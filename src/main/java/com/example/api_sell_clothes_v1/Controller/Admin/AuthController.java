@@ -129,6 +129,17 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/verify-access-token")
+    public ResponseEntity<?> verifyAccessToken(@Valid @RequestBody RefreshTokenDTO refreshTokenDTO) {
+        try {
+            TokenResponseDTO tokenResponse = authService.verifyNewAccess(refreshTokenDTO);
+            return ResponseEntity.ok(tokenResponse);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiResponse(false, e.getMessage()));
+        }
+    }
+
     @PostMapping("/resend-otp")
     public ResponseEntity<?> resendOtp(@RequestParam String email) {
         try {

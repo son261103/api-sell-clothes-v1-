@@ -35,14 +35,15 @@ public class InitializationService {
     @PostConstruct
     public void init() {
         try {
-            createDefaultPermissions();
             createDefaultRoles();
+            createDefaultPermissions();
             assignPermissionsToRoles();
             createDefaultAdmin();
         } catch (Exception e) {
             log.error("Error during initialization: ", e);
         }
     }
+
 
     @Transactional
     protected void createDefaultPermissions() {
@@ -68,7 +69,7 @@ public class InitializationService {
 
             // Get admin role
             Optional<Roles> adminRoleOpt = roleRepository.findByName(RoleType.ROLE_ADMIN.getCode());
-            Roles adminRole = adminRoleOpt.get();
+            Roles adminRole = adminRoleOpt.orElseThrow(() -> new RuntimeException("Admin role not found"));
 
             // Initialize permissions set if null
             if (adminRole.getPermissions() == null) {
