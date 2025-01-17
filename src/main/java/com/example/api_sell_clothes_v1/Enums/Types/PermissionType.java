@@ -24,6 +24,18 @@ public enum PermissionType {
     DELETE_CUSTOMER("DELETE_CUSTOMER", "Delete CUSTOMER", "Allows CUSTOMER to delete CUSTOMER accounts", "CUSTOMER Management"),
     VIEW_CUSTOMER("VIEW_CUSTOMER", "View CUSTOMER", "Allows CUSTOMER to view CUSTOMER account details", "CUSTOMER Management"),
 
+    // Category Management Permissions
+    CREATE_CATEGORY("CREATE_CATEGORY", "Create Category", "Allows CUSTOMER to create a new product category", "Category Management"),
+    EDIT_CATEGORY("EDIT_CATEGORY", "Edit Category", "Allows CUSTOMER to edit an existing product category", "Category Management"),
+    DELETE_CATEGORY("DELETE_CATEGORY", "Delete Category", "Allows CUSTOMER to delete a product category", "Category Management"),
+    VIEW_CATEGORY("VIEW_CATEGORY", "View Category", "Allows CUSTOMER to view category details", "Category Management"),
+
+    //    Brand Management Permissions
+    CREATE_BRAND("CREATE_BRAND", "Create Brand", "Allows CUSTOMER to create a new product brand", "Brand Management"),
+    EDIT_BRAND("EDIT_BRAND", "Edit Brand", "Allows CUSTOMER to edit an existing product brand", "Brand Management"),
+    DELETE_BRAND("DELETE_BRAND", "Delete Brand", "Allows CUSTOMER to delete a product brand", "Brand Management"),
+    VIEW_BRAND("VIEW_BRAND", "View Brand", "Allows CUSTOMER to view brand details", "Brand Management"),
+
     // Product Management Permissions
     ADD_PRODUCT("ADD_PRODUCT", "Add Product", "Allows CUSTOMER to add a new product", "Product Management"),
     EDIT_PRODUCT("EDIT_PRODUCT", "Edit Product", "Allows CUSTOMER to edit an existing product", "Product Management"),
@@ -36,12 +48,6 @@ public enum PermissionType {
     DELETE_ORDER("DELETE_ORDER", "Delete Order", "Allows CUSTOMER to delete an order", "Order Management"),
     VIEW_ORDER("VIEW_ORDER", "View Order", "Allows CUSTOMER to view order details", "Order Management"),
 
-
-    // Category Management Permissions
-    CREATE_CATEGORY("CREATE_CATEGORY", "Create Category", "Allows CUSTOMER to create a new product category", "Category Management"),
-    EDIT_CATEGORY("EDIT_CATEGORY", "Edit Category", "Allows CUSTOMER to edit an existing product category", "Category Management"),
-    DELETE_CATEGORY("DELETE_CATEGORY", "Delete Category", "Allows CUSTOMER to delete a product category", "Category Management"),
-    VIEW_CATEGORY("VIEW_CATEGORY", "View Category", "Allows CUSTOMER to view category details", "Category Management"),
 
     // Review Management Permissions
     CREATE_REVIEW("CREATE_REVIEW", "Create Review", "Allows CUSTOMER to create a review for a product", "Review Management"),

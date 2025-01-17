@@ -96,6 +96,30 @@ public class EndpointPermissionConstants {
                 PermissionType.VIEW_CATEGORY.getCodeName());
     }};
 
+    //    Brand endpoints permissions
+    public static final Map<String, String> BRAND_ENDPOINTS = new HashMap<>() {{
+        put(ApiPatternConstants.API_BRANDS + ApiPatternConstants.PATTERN_CREATE,
+                PermissionType.CREATE_BRAND.getCodeName());
+        put(ApiPatternConstants.API_BRANDS + ApiPatternConstants.PATTERN_EDIT,
+                PermissionType.EDIT_BRAND.getCodeName());
+        put(ApiPatternConstants.API_BRANDS + ApiPatternConstants.PATTERN_DELETE,
+                PermissionType.DELETE_BRAND.getCodeName());
+        put(ApiPatternConstants.API_BRANDS + ApiPatternConstants.PATTERN_VIEW,
+                PermissionType.VIEW_BRAND.getCodeName());
+        put(ApiPatternConstants.API_BRANDS + ApiPatternConstants.PATTERN_LIST,
+                PermissionType.VIEW_BRAND.getCodeName());
+        put(ApiPatternConstants.API_BRANDS + "/active",
+                PermissionType.VIEW_BRAND.getCodeName());
+        put(ApiPatternConstants.API_BRANDS + "/search",
+                PermissionType.VIEW_BRAND.getCodeName());
+        put(ApiPatternConstants.API_BRANDS + "/status/{id}",
+                PermissionType.EDIT_BRAND.getCodeName());
+        put(ApiPatternConstants.API_BRANDS + "/hierarchy",
+                PermissionType.VIEW_BRAND.getCodeName());
+        put(ApiPatternConstants.API_BRANDS + "/by-name/**",
+                PermissionType.VIEW_BRAND.getCodeName());
+    }};
+
     // Product endpoint permissions
     public static final Map<String, String> PRODUCT_ENDPOINTS = new HashMap<>() {{
         put(ApiPatternConstants.API_PRODUCTS + ApiPatternConstants.PATTERN_ADD,

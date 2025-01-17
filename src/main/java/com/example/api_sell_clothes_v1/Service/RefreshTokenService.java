@@ -31,6 +31,31 @@ public class RefreshTokenService {
     }
 
     @Transactional
+    public boolean verifyRefreshTokenForNewAccess(String refreshToken) {
+        log.info("Verifying refresh token for generating new access token");
+        try {
+            // 1. Tìm refresh token trong database
+            RefreshTokens storedToken = refreshTokenRepository.findByRefreshToken(refreshToken)
+                    .orElseThrow(() -> new RuntimeException("Refresh token not found in database"));
+
+            // 2. Kiểm tra token có hết hạn chưa
+            if (storedToken.getExpirationTime().isBefore(LocalDateTime.now())) {
+                log.error("Refresh token has expired");
+                refreshTokenRepository.delete(storedToken);
+                throw new RuntimeException("Refresh token was expired. Please login again");
+            }
+
+            // 3. Nếu token còn hạn thì return true
+            log.info("Refresh token is valid");
+            return true;
+
+        } catch (Exception e) {
+            log.error("Error verifying refresh token: {}", e.getMessage());
+            throw new RuntimeException("Failed to verify refresh token: " + e.getMessage());
+        }
+    }
+
+    @Transactional
     public RefreshTokens createRefreshToken(Users user) {
         log.info("Creating new refresh token for user: {}", user.getUsername());
         try {

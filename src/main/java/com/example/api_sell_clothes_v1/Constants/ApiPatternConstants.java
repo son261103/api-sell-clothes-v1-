@@ -5,6 +5,7 @@ public class ApiPatternConstants {
     // Base paths
     public static final String API_PERMISSIONS = "/api/v1/permissions";
     public static final String API_ROLES = "/api/v1/roles";
+    public static final String API_BRANDS = "/api/v1/brands";
     public static final String API_PRODUCTS = "/api/v1/products";
     public static final String API_ORDERS = "/api/v1/orders";
     public static final String API_USERS = "/api/v1/users";
