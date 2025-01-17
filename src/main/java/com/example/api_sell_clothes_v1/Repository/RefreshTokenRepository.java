@@ -17,13 +17,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshTokens, Lon
 
     Optional<RefreshTokens> findByUser(Users user);
 
-    List<RefreshTokens> findAllByUser(Users user);
-
-    void deleteByUser(Users user);
-
-    // Nếu muốn tìm theo userId, thêm phương thức này
-    @Query("SELECT r FROM RefreshTokens r WHERE r.user.userId = :userId")
-    Optional<RefreshTokens> findByUserUserId(@Param("userId") Long userId);
+    int deleteAllByUser(Users user);
 
     // Nếu muốn xóa theo userId, thêm phương thức này
     @Modifying

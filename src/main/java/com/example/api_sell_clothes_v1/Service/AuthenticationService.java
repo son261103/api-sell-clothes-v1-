@@ -82,7 +82,12 @@ public class AuthenticationService {
             // Tạo custom user details
             CustomUserDetails userDetails = new CustomUserDetails(user, authorityService.getAuthorities(user));
 
-            // Tạo tokens
+            // Xóa tất cả refresh token cũ của user này trước khi tạo mới
+            log.info("Deleting all existing refresh tokens for user: {}", user.getUsername());
+            refreshTokenService.deleteAllUserTokens(user);
+
+            // Tạo tokens mới
+            log.info("Generating new tokens for user: {}", user.getUsername());
             String accessToken = jwtService.generateToken(userDetails);
             RefreshTokens refreshToken = refreshTokenService.createRefreshToken(user);
 
@@ -97,6 +102,8 @@ public class AuthenticationService {
                     .collect(Collectors.toSet());
 
             log.info("Authentication successful for user: {}", request.getLoginId());
+            log.debug("User roles: {}", roles);
+            log.debug("User permissions: {}", permissions);
 
             // Trả về token response
             return TokenResponseDTO.builder()
@@ -114,6 +121,7 @@ public class AuthenticationService {
 
         } catch (UserStatusException e) {
             // Trả về thông báo cụ thể về status
+            log.error("User status exception for user {}: {}", request.getLoginId(), e.getMessage());
             throw e;
         } catch (BadCredentialsException e) {
             log.error("Invalid credentials for user: {}", request.getLoginId());
@@ -121,6 +129,9 @@ public class AuthenticationService {
         } catch (AuthenticationException e) {
             log.error("Authentication failed for user: {}", request.getLoginId());
             throw new BadCredentialsException("Thông tin đăng nhập không chính xác");
+        } catch (Exception e) {
+            log.error("Unexpected error during authentication for user {}: {}", request.getLoginId(), e.getMessage());
+            throw new RuntimeException("Authentication failed due to an unexpected error");
         }
     }
 
