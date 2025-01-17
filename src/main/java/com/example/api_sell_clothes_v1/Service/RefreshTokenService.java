@@ -80,7 +80,9 @@ public class RefreshTokenService {
             log.error("Error creating refresh token for user {}: {}", user.getUsername(), e.getMessage());
             throw new RuntimeException("Failed to create refresh token", e);
         }
+
     }
+
 
     public RefreshTokens verifyExpiration(RefreshTokens token) {
         if (token.getExpirationTime().isBefore(LocalDateTime.now())) {
