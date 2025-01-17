@@ -1,5 +1,6 @@
 package com.example.api_sell_clothes_v1.Controller.Admin;
 
+import com.example.api_sell_clothes_v1.Constants.ApiPatternConstants;
 import com.example.api_sell_clothes_v1.DTO.Roles.RoleCreateDTO;
 import com.example.api_sell_clothes_v1.DTO.Roles.RoleResponseDTO;
 import com.example.api_sell_clothes_v1.DTO.Roles.RoleUpdateDTO;
@@ -13,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/roles")
+@RequestMapping(ApiPatternConstants.API_ROLES)
 @RequiredArgsConstructor
 public class RoleController {
     private final RoleService roleService;

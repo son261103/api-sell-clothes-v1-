@@ -1,5 +1,6 @@
 package com.example.api_sell_clothes_v1.Controller.Admin;
 
+import com.example.api_sell_clothes_v1.Constants.ApiPatternConstants;
 import com.example.api_sell_clothes_v1.DTO.Permissons.PermissionCreateDTO;
 import com.example.api_sell_clothes_v1.DTO.Permissons.PermissionResponseDTO;
 import com.example.api_sell_clothes_v1.DTO.Permissons.PermissionUpdateDTO;
@@ -15,7 +16,7 @@ import java.util.List;
 import java.util.Set;
 
 @RestController
-@RequestMapping("/api/v1/permissions")
+@RequestMapping(ApiPatternConstants.API_PERMISSIONS)
 @RequiredArgsConstructor
 public class PermissionController {
     private final PermissionService permissionService;

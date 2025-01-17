@@ -21,7 +21,7 @@ public class CategoryMapper implements EntityMapper<Categories, CategoryResponse
             return null;
         }
         return Categories.builder()
-                .id(dto.getCategoryId())
+                .categoryId(dto.getCategoryId())
                 .name(dto.getName())
                 .parentId(dto.getParentId())
                 .description(dto.getDescription())
@@ -37,7 +37,7 @@ public class CategoryMapper implements EntityMapper<Categories, CategoryResponse
             return null;
         }
         return CategoryResponseDTO.builder()
-                .categoryId(entity.getId())
+                .categoryId(entity.getCategoryId())
                 .name(entity.getName())
                 .parentId(entity.getParentId())
                 .description(entity.getDescription())
