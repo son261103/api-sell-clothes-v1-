@@ -84,16 +84,6 @@ public class BrandController {
         }
     }
 
-    @PatchMapping("/status/{id}")
-    @PreAuthorize("hasAuthority('EDIT_BRAND')")
-    public ResponseEntity<ApiResponse> updateBrandStatus(
-            @PathVariable("id") Long brandId,
-            @RequestParam Boolean status) {
-        ApiResponse response = brandService.updateBrandStatus(brandId, status);
-        return response.isSuccess()
-                ? ResponseEntity.ok(response)
-                : ResponseEntity.badRequest().body(response);
-    }
 
     @DeleteMapping("/delete/{id}")
     @PreAuthorize("hasAuthority('DELETE_BRAND')")
@@ -118,6 +108,15 @@ public class BrandController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    @PatchMapping("/status/{id}")
+    @PreAuthorize("hasAuthority('EDIT_BRAND')")
+    public ResponseEntity<ApiResponse> toggleBrandStatus(@PathVariable("id") Long brandId) {
+        ApiResponse response = brandService.toggleBrandStatus(brandId);
+        return response.isSuccess()
+                ? ResponseEntity.ok(response)
+                : ResponseEntity.badRequest().body(response);
     }
 
 //    @GetMapping("/check-name")

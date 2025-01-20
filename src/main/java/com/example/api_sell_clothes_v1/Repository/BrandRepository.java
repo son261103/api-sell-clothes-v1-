@@ -38,14 +38,19 @@ public interface BrandRepository extends JpaRepository<Brands, Long> {
     /**
      * Get brand statistics
      */
-    @Query("SELECT COUNT(b) as total, " +
-            "SUM(CASE WHEN b.status = true THEN 1 ELSE 0 END) as active, " +
-            "SUM(CASE WHEN b.status = false THEN 1 ELSE 0 END) as inactive " +
+    @Query("SELECT COUNT(b), " +
+            "SUM(CASE WHEN b.status = true THEN 1 ELSE 0 END), " +
+            "SUM(CASE WHEN b.status = false THEN 1 ELSE 0 END) " +
             "FROM Brands b")
     Object[] getBrandStatistics();
+
 
     /**
      * Find brands sorted by name
      */
     List<Brands> findAllByOrderByNameAsc();
+
+    boolean existsByBrandIdAndStatus(Long brandId, boolean status);
+
+
 }

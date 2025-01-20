@@ -37,7 +37,7 @@ public enum PermissionType {
     VIEW_BRAND("VIEW_BRAND", "View Brand", "Allows CUSTOMER to view brand details", "Brand Management"),
 
     // Product Management Permissions
-    ADD_PRODUCT("ADD_PRODUCT", "Add Product", "Allows CUSTOMER to add a new product", "Product Management"),
+    CREATE_PRODUCT("CREATE_PRODUCT", "Create Product", "Allows CUSTOMER to add a new product", "Product Management"),
     EDIT_PRODUCT("EDIT_PRODUCT", "Edit Product", "Allows CUSTOMER to edit an existing product", "Product Management"),
     DELETE_PRODUCT("DELETE_PRODUCT", "Delete Product", "Allows CUSTOMER to delete a product", "Product Management"),
     VIEW_PRODUCT("VIEW_PRODUCT", "View Product", "Allows CUSTOMER to view product details", "Product Management"),

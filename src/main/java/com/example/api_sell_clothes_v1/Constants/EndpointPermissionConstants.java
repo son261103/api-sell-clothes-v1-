@@ -122,16 +122,94 @@ public class EndpointPermissionConstants {
 
     // Product endpoint permissions
     public static final Map<String, String> PRODUCT_ENDPOINTS = new HashMap<>() {{
-        put(ApiPatternConstants.API_PRODUCTS + ApiPatternConstants.PATTERN_ADD,
-                PermissionType.ADD_PRODUCT.getCodeName());
-        put(ApiPatternConstants.API_PRODUCTS + ApiPatternConstants.PATTERN_EDIT,
+        // Basic CRUD operations
+        put(ApiPatternConstants.API_PRODUCTS + "/create",
+                PermissionType.CREATE_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCTS + "/edit/{id}",
                 PermissionType.EDIT_PRODUCT.getCodeName());
-        put(ApiPatternConstants.API_PRODUCTS + ApiPatternConstants.PATTERN_DELETE,
+        put(ApiPatternConstants.API_PRODUCTS + "/delete/{id}",
                 PermissionType.DELETE_PRODUCT.getCodeName());
-        put(ApiPatternConstants.API_PRODUCTS + ApiPatternConstants.PATTERN_VIEW,
+        put(ApiPatternConstants.API_PRODUCTS + "/view/{id}",
                 PermissionType.VIEW_PRODUCT.getCodeName());
-        put(ApiPatternConstants.API_PRODUCTS + ApiPatternConstants.PATTERN_LIST,
+
+        // Viewing and listing endpoints
+        put(ApiPatternConstants.API_PRODUCTS + "/hierarchy",
                 PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCTS + "/slug/{slug}",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCTS + "/category/{categoryId}",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCTS + "/brand/{brandId}",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+
+        // Filtering and searching endpoints
+        put(ApiPatternConstants.API_PRODUCTS + "/filter",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCTS + "/search",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+
+        // Status management
+        put(ApiPatternConstants.API_PRODUCTS + "/status/{id}",
+                PermissionType.EDIT_PRODUCT.getCodeName());
+
+        // Special product listings
+        put(ApiPatternConstants.API_PRODUCTS + "/sale",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCTS + "/latest",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCTS + "/featured",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCTS + "/related/{productId}",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCTS + "/bulk-create",
+                PermissionType.CREATE_PRODUCT.getCodeName());
+    }};
+
+    // Product variants endpoint permission
+    public static final Map<String, String> PRODUCT_VARIANT_ENDPOINTS = new HashMap<>() {{
+        // Basic CRUD operations
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/create",
+                PermissionType.CREATE_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/edit/{id}",
+                PermissionType.EDIT_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/delete/{id}",
+                PermissionType.DELETE_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/view/{id}",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+
+        // Viewing and listing endpoints
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/hierarchy/{productId}",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/sku/{sku}",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/product/{productId}",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/product/{productId}/active",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+
+        // Filtering endpoints
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/filter",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+
+        // Product-specific attributes
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/product/{productId}/sizes",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/product/{productId}/colors",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+
+        // Availability and stock management
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/check-availability",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/low-stock",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/out-of-stock",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+
+        // Status and stock management
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/status/{id}",
+                PermissionType.EDIT_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCT_VARIANTS + "/{id}/stock",
+                PermissionType.EDIT_PRODUCT.getCodeName());
     }};
 
     // Order endpoint permissions

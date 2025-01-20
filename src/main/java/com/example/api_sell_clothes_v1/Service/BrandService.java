@@ -33,13 +33,19 @@ public class BrandService {
         List<Brands> brands = brandRepository.findAllByOrderByNameAsc();
         Object[] stats = brandRepository.getBrandStatistics();
 
+        // Đảm bảo stats không null và chứa 3 phần tử mong đợi
+        int totalBrands = stats != null && stats.length > 0 ? ((Long) stats[0]).intValue() : 0;
+        int activeBrands = stats != null && stats.length > 1 ? ((Long) stats[1]).intValue() : 0;
+        int inactiveBrands = stats != null && stats.length > 2 ? ((Long) stats[2]).intValue() : 0;
+
         return BrandHierarchyDTO.builder()
                 .brands(brandMapper.toDto(brands))
-                .totalBrands(((Long) stats[0]).intValue())
-                .activeBrands(((Long) stats[1]).intValue())
-                .inactiveBrands(((Long) stats[2]).intValue())
+                .totalBrands(totalBrands)
+                .activeBrands(activeBrands)
+                .inactiveBrands(inactiveBrands)
                 .build();
     }
+
 
     /**
      * Get brand by ID
@@ -87,6 +93,9 @@ public class BrandService {
 
         // Create brand entity
         Brands brand = brandMapper.toEntity(createDTO);
+
+        // Set status to active by default
+        brand.setStatus(true);
 
         // Upload logo if provided
         if (logoFile != null && !logoFile.isEmpty()) {
@@ -206,21 +215,64 @@ public class BrandService {
      * Update brand status
      */
     @Transactional
-    public ApiResponse updateBrandStatus(Long brandId, Boolean status) {
+    public ApiResponse updateBrandStatus(Long brandId, Integer status) {
         try {
+            // Chỉ chấp nhận trạng thái 0 hoặc 1
+            if (status != 0 && status != 1) {
+                throw new IllegalArgumentException("Invalid status value. Only 0 (deactive) or 1 (active) are allowed.");
+            }
+
             Brands brand = brandRepository.findById(brandId)
                     .orElseThrow(() -> new EntityNotFoundException("Brand does not exist"));
 
-            brand.setStatus(status);
+            // Cập nhật trạng thái
+            brand.setStatus(status == 1);
             brandRepository.save(brand);
 
-            String statusMessage = status ? "activate" : "disable";
-            log.info("Updated status for brand ID {} to {}", brandId, status);
+            String statusMessage = (status == 1) ? "activate" : "deactivate";
+            log.info("Updated status for brand ID {} to {}", brandId, statusMessage);
 
-            return new ApiResponse(true, "Already " + statusMessage + " successful brand");
+            return new ApiResponse(true, "Successfully " + statusMessage + " brand.");
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid status value provided: {}", e.getMessage());
+            return new ApiResponse(false, "Error: " + e.getMessage());
         } catch (Exception e) {
             log.error("Error updating brand status: {}", e.getMessage());
             return new ApiResponse(false, "Error updating brand status: " + e.getMessage());
         }
     }
+
+
+    @Transactional
+    public ApiResponse toggleBrandStatus(Long brandId) {
+        try {
+            Brands brand = brandRepository.findById(brandId)
+                    .orElseThrow(() -> new EntityNotFoundException("Brand does not exist"));
+
+            // Nếu đang kích hoạt brand, cần kiểm tra các điều kiện liên quan
+            if (!brand.getStatus()) { // Nếu đang kích hoạt brand
+                // Giả sử bạn có logic kiểm tra các ràng buộc liên quan (ví dụ: sản phẩm thuộc brand)
+                boolean hasActiveProducts = brandRepository.existsByBrandIdAndStatus(brand.getBrandId(), true);
+                if (hasActiveProducts) {
+                    throw new IllegalArgumentException("Cannot activate brand while there are active products under this brand");
+                }
+            }
+
+            // Cập nhật trạng thái của brand
+            brand.setStatus(!brand.getStatus());
+            brandRepository.save(brand);
+
+            String statusMessage = brand.getStatus() ? "activated" : "deactivated";
+            log.info("Brand ID {} has been {}", brandId, statusMessage);
+
+            return new ApiResponse(true, "Brand has been " + statusMessage);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid operation for brand status: {}", e.getMessage());
+            return new ApiResponse(false, "Error: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("Error toggling brand status: {}", e.getMessage());
+            return new ApiResponse(false, "Error updating brand status: " + e.getMessage());
+        }
+    }
+
 }

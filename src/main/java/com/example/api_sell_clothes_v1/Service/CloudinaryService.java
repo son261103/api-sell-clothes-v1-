@@ -11,6 +11,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -21,6 +23,8 @@ public class CloudinaryService {
     // Constants for file validation
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png", "webp");
+    private static final Pattern PUBLIC_ID_PATTERN = Pattern.compile("/v\\d+/(.+?)\\.[^.]+$");
+    private static final String RESOURCE_TYPE = "image";
 
     /**
      * Upload file to specific folder
@@ -46,23 +50,55 @@ public class CloudinaryService {
     }
 
     /**
-     * Delete file using public id or url
+     * Delete file using Cloudinary URL
      */
-    public void deleteFile(String urlOrPublicId) {
-        try {
-            String publicId = extractPublicId(urlOrPublicId);
-            Map result = cloudinary.uploader().destroy(publicId,
-                    ObjectUtils.asMap("resource_type", "image"));
+    public void deleteFile(String cloudinaryUrl) {
+        if (cloudinaryUrl == null || cloudinaryUrl.isEmpty()) {
+            log.warn("Empty URL provided for deletion");
+            return;
+        }
 
-            if (!"ok".equals(result.get("result"))) {
-                throw new CloudinaryException("Không thể xóa file", HttpStatus.BAD_REQUEST);
+        try {
+            String publicId = extractPublicIdFromUrl(cloudinaryUrl);
+            if (publicId == null) {
+                log.warn("Could not extract public ID from URL: {}", cloudinaryUrl);
+                return;
             }
-            log.info("Successfully deleted file: {}", publicId);
+
+            Map<String, Object> options = ObjectUtils.asMap("resource_type", RESOURCE_TYPE);
+            Map result = cloudinary.uploader().destroy(publicId, options);
+
+            if ("ok".equals(result.get("result"))) {
+                log.info("Successfully deleted file from Cloudinary. Public ID: {}", publicId);
+            } else {
+                log.warn("File deletion returned unexpected result: {}", result);
+                throw new CloudinaryException("Không thể xóa file: " + result.get("result"), HttpStatus.BAD_REQUEST);
+            }
         } catch (IOException e) {
-            log.error("Failed to delete file: {}", e.getMessage());
-            throw new CloudinaryException("Lỗi khi xóa file", HttpStatus.INTERNAL_SERVER_ERROR);
+            log.error("Failed to delete file from Cloudinary: {}", e.getMessage());
+            throw new CloudinaryException("Lỗi khi xóa file: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    private String extractPublicIdFromUrl(String url) {
+        try {
+            // Handle both http and https URLs
+            if (!url.contains("/upload/")) {
+                return null;
+            }
+
+            Matcher matcher = PUBLIC_ID_PATTERN.matcher(url);
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
+
+            return null;
+        } catch (Exception e) {
+            log.error("Error extracting public ID from URL: {}. Error: {}", url, e.getMessage());
+            return null;
+        }
+    }
+
 
     /**
      * Update file - delete old file and upload new one
@@ -101,12 +137,4 @@ public class CloudinaryService {
         return filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
     }
 
-    private String extractPublicId(String urlOrPublicId) {
-        if (urlOrPublicId.contains("/")) {
-            String[] parts = urlOrPublicId.split("/");
-            // Get the last part and remove extension if exists
-            return parts[parts.length - 1].split("\\.")[0];
-        }
-        return urlOrPublicId;
-    }
 }

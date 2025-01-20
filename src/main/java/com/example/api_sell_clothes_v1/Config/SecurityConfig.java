@@ -67,6 +67,16 @@ public class SecurityConfig {
     }
 
     /**
+     * Configure endpoint permissions for Product variant management
+     */
+
+    private void configureProductVariantEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.PRODUCT_VARIANT_ENDPOINTS.forEach((endpoint, permission) ->
+                auth.requestMatchers(endpoint).hasAuthority(permission)
+        );
+    }
+
+    /**
      * Configure endpoint permissions for Order management
      */
     private void configureOrderEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
@@ -130,6 +140,7 @@ public class SecurityConfig {
                     configurePermissionEndpoints(auth);
                     configureRoleEndpoints(auth);
                     configureProductEndpoints(auth);
+                    configureProductVariantEndpoints(auth);
                     configureOrderEndpoints(auth);
                     configureUserEndpoints(auth);
                     configureCategoryEndpoints(auth);
