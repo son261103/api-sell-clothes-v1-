@@ -165,6 +165,36 @@ public class EndpointPermissionConstants {
                 PermissionType.CREATE_PRODUCT.getCodeName());
     }};
 
+    public static final Map<String, String> PRODUCT_IMAGE_ENDPOINTS = new HashMap<>() {{
+        // Upload and update operations
+        put(ApiPatternConstants.API_PRODUCTS + "/images/upload/{productId}",
+                PermissionType.EDIT_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCTS + "/images/update-file/{imageId}",
+                PermissionType.EDIT_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCTS + "/images/update/{imageId}",
+                PermissionType.EDIT_PRODUCT.getCodeName());
+
+        // Primary image management
+        put(ApiPatternConstants.API_PRODUCTS + "/images/primary/{imageId}",
+                PermissionType.EDIT_PRODUCT.getCodeName());
+
+        // Image organization
+        put(ApiPatternConstants.API_PRODUCTS + "/images/reorder/{productId}",
+                PermissionType.EDIT_PRODUCT.getCodeName());
+
+        // Delete operations
+        put(ApiPatternConstants.API_PRODUCTS + "/images/{imageId}",
+                PermissionType.DELETE_PRODUCT.getCodeName());
+
+        // View operations
+        put(ApiPatternConstants.API_PRODUCTS + "/images/list/{productId}",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCTS + "/images/primary/{productId}",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+        put(ApiPatternConstants.API_PRODUCTS + "/images/hierarchy/{productId}",
+                PermissionType.VIEW_PRODUCT.getCodeName());
+    }};
+
     // Product variants endpoint permission
     public static final Map<String, String> PRODUCT_VARIANT_ENDPOINTS = new HashMap<>() {{
         // Basic CRUD operations

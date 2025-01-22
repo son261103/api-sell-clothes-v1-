@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,12 +32,233 @@ public class ProductImageService {
     private static final String IMAGE_PREFIX = "product_";
 
     /**
+     * Upload and add multiple product images
+     */
+    @Transactional
+    public List<ProductImageResponseDTO> uploadProductImages(Long productId, List<MultipartFile> files) {
+        Products product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+
+        // Check if product already has images
+        boolean hasExistingImages = imageRepository.countByProductId(productId) > 0;
+
+        List<ProductImages> newImages = new ArrayList<>();
+        int order = getNextDisplayOrder(productId);
+
+        for (int i = 0; i < files.size(); i++) {
+            MultipartFile file = files.get(i);
+
+            // Upload image to Cloudinary
+            String imageUrl = cloudinaryService.uploadFile(file, IMAGE_FOLDER, IMAGE_PREFIX);
+
+            ProductImages image = new ProductImages();
+            image.setProduct(product);
+            image.setImageUrl(imageUrl);
+            image.setDisplayOrder(order + i);
+
+            // Set first image as primary if no existing images
+            image.setIsPrimary(!hasExistingImages && i == 0);
+
+            newImages.add(image);
+        }
+
+        List<ProductImages> savedImages = imageRepository.saveAll(newImages);
+        log.info("Added {} new product images for product ID: {}", savedImages.size(), productId);
+
+        return imageMapper.toDto(savedImages);
+    }
+
+    /**
+     * Update image primary status
+     */
+    @Transactional
+    public ProductImageResponseDTO updatePrimaryStatus(Long imageId) {
+        ProductImages image = imageRepository.findById(imageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Image not found"));
+
+        // If image is already primary, do nothing
+        if (Boolean.TRUE.equals(image.getIsPrimary())) {
+            return imageMapper.toDto(image);
+        }
+
+        // Set all other images as non-primary
+        imageRepository.updateOtherImagesNonPrimary(
+                image.getProduct().getProductId(),
+                image.getImageId()
+        );
+
+        // Set this image as primary
+        image.setIsPrimary(true);
+        ProductImages savedImage = imageRepository.save(image);
+
+        log.info("Updated primary image for product ID: {} to image ID: {}",
+                image.getProduct().getProductId(), imageId);
+
+        return imageMapper.toDto(savedImage);
+    }
+
+    /**
+     * Reorder product images
+     */
+    @Transactional
+    public ApiResponse reorderProductImages(Long productId, List<Long> imageIds) {
+        Products product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+
+        List<ProductImages> currentImages = imageRepository
+                .findByProductProductIdOrderByDisplayOrderAsc(productId);
+
+        // Validate all images belong to the product
+        if (currentImages.size() != imageIds.size() ||
+                !currentImages.stream()
+                        .map(ProductImages::getImageId)
+                        .collect(java.util.stream.Collectors.toSet())
+                        .containsAll(imageIds)) {
+            throw new IllegalArgumentException("Invalid image list provided");
+        }
+
+        // Update display orders
+        for (int i = 0; i < imageIds.size(); i++) {
+            ProductImages image = imageRepository.findById(imageIds.get(i))
+                    .orElseThrow(() -> new ResourceNotFoundException("Image not found"));
+            image.setDisplayOrder(i);
+            imageRepository.save(image);
+        }
+
+        log.info("Reordered images for product ID: {}", productId);
+        return new ApiResponse(true, "Images reordered successfully");
+    }
+
+    /**
+     * Delete product image
+     */
+    @Transactional
+    public ApiResponse deleteProductImage(Long imageId) {
+        ProductImages image = imageRepository.findById(imageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Image not found"));
+
+        Long productId = image.getProduct().getProductId();
+
+        // If deleting primary image, set next image as primary
+        if (Boolean.TRUE.equals(image.getIsPrimary())) {
+            List<ProductImages> otherImages = imageRepository
+                    .findByProductProductIdOrderByDisplayOrderAsc(productId)
+                    .stream()
+                    .filter(img -> !img.getImageId().equals(imageId))
+                    .toList();
+
+            if (!otherImages.isEmpty()) {
+                ProductImages newPrimary = otherImages.get(0);
+                newPrimary.setIsPrimary(true);
+                imageRepository.save(newPrimary);
+            }
+        }
+
+        // Delete image file from storage
+        try {
+            cloudinaryService.deleteFile(image.getImageUrl());
+        } catch (Exception e) {
+            log.warn("Failed to delete image file: {}", e.getMessage());
+        }
+
+        // Delete image record
+        imageRepository.delete(image);
+
+        // Reorder remaining images
+        reorderImagesAfterDeletion(productId);
+
+        log.info("Deleted product image ID: {} from product ID: {}", imageId, productId);
+        return new ApiResponse(true, "Image deleted successfully");
+    }
+
+    /**
+     * Get all images for a product
+     */
+    @Transactional(readOnly = true)
+    public List<ProductImageResponseDTO> getProductImages(Long productId) {
+        List<ProductImages> images = imageRepository
+                .findByProductProductIdOrderByDisplayOrderAsc(productId);
+        return imageMapper.toDto(images);
+    }
+
+    /**
+     * Get primary image for a product
+     */
+    @Transactional(readOnly = true)
+    public ProductImageResponseDTO getPrimaryImage(Long productId) {
+        ProductImages primaryImage = imageRepository
+                .findByProductProductIdAndIsPrimaryTrue(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("No primary image found"));
+        return imageMapper.toDto(primaryImage);
+    }
+
+    /**
+     * Update image file
+     */
+    @Transactional
+    public ProductImageResponseDTO updateImageFile(Long imageId, MultipartFile newFile) {
+        ProductImages image = imageRepository.findById(imageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Image not found"));
+
+        // Upload new image
+        String newImageUrl = cloudinaryService.uploadFile(newFile, IMAGE_FOLDER, IMAGE_PREFIX);
+
+        // Delete old image
+        try {
+            cloudinaryService.deleteFile(image.getImageUrl());
+        } catch (Exception e) {
+            log.warn("Failed to delete old image file: {}", e.getMessage());
+        }
+
+        // Update image URL
+        image.setImageUrl(newImageUrl);
+        ProductImages savedImage = imageRepository.save(image);
+
+        log.info("Updated image file for image ID: {}", imageId);
+        return imageMapper.toDto(savedImage);
+    }
+
+    /**
+     * Update image properties
+     */
+    @Transactional
+    public ProductImageResponseDTO updateImageProperties(Long imageId, ProductImageUpdateDTO updateDTO) {
+        ProductImages image = imageRepository.findById(imageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Image not found"));
+
+        // If updating to primary, handle other images
+        if (Boolean.TRUE.equals(updateDTO.getIsPrimary()) && !Boolean.TRUE.equals(image.getIsPrimary())) {
+            imageRepository.updateOtherImagesNonPrimary(
+                    image.getProduct().getProductId(),
+                    image.getImageId()
+            );
+        }
+
+        // Update display order if provided
+        if (updateDTO.getDisplayOrder() != null) {
+            image.setDisplayOrder(updateDTO.getDisplayOrder());
+        }
+
+        // Update primary status if provided
+        if (updateDTO.getIsPrimary() != null) {
+            image.setIsPrimary(updateDTO.getIsPrimary());
+        }
+
+        ProductImages savedImage = imageRepository.save(image);
+        log.info("Updated properties for image ID: {}", imageId);
+        return imageMapper.toDto(savedImage);
+    }
+
+    /**
      * Get product images hierarchy information
      */
     @Transactional(readOnly = true)
     public ProductImageHierarchyDTO getProductImagesHierarchy(Long productId) {
-        List<ProductImages> images = imageRepository.findByProductProductIdOrderByDisplayOrderAsc(productId);
-        long primaryCount = images.stream().filter(ProductImages::getIsPrimary).count();
+        List<ProductImages> images = imageRepository
+                .findByProductProductIdOrderByDisplayOrderAsc(productId);
+        long primaryCount = images.stream()
+                .filter(ProductImages::getIsPrimary)
+                .count();
 
         return ProductImageHierarchyDTO.builder()
                 .images(imageMapper.toDto(images))
@@ -48,186 +270,25 @@ public class ProductImageService {
     }
 
     /**
-     * Add a single product image
+     * Helper method to get next display order for a product
      */
-    @Transactional
-    public ProductImageResponseDTO addProductImage(ProductImageCreateDTO createDTO) {
-        Products product = productRepository.findById(createDTO.getProductId())
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
-
-        // Set display order if not provided
-        if (createDTO.getDisplayOrder() == null) {
-            Optional<Integer> maxOrder = imageRepository.findMaxDisplayOrderByProductId(createDTO.getProductId());
-            createDTO.setDisplayOrder(maxOrder.map(order -> order + 1).orElse(0));
-        }
-
-        // Set primary status for first image
-        if (createDTO.getIsPrimary() == null) {
-            long imageCount = imageRepository.countByProductId(createDTO.getProductId());
-            createDTO.setIsPrimary(imageCount == 0);
-        }
-
-        // If this is set as primary, update other images
-        if (Boolean.TRUE.equals(createDTO.getIsPrimary())) {
-            handlePrimaryImageUpdate(createDTO.getProductId(), null);
-        }
-
-        ProductImages image = imageMapper.toEntity(createDTO);
-        image.setProduct(product);
-
-        ProductImages savedImage = imageRepository.save(image);
-        log.info("Added new product image with ID: {}", savedImage.getImageId());
-
-        return imageMapper.toDto(savedImage);
+    private int getNextDisplayOrder(Long productId) {
+        return imageRepository.findMaxDisplayOrderByProductId(productId)
+                .map(order -> order + 1)
+                .orElse(0);
     }
 
     /**
-     * Bulk add product images
+     * Helper method to reorder images after deletion
      */
-    @Transactional
-    public List<ProductImageResponseDTO> addProductImages(BulkProductImageCreateDTO bulkDTO) {
-        Products product = productRepository.findById(bulkDTO.getProductId())
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+    private void reorderImagesAfterDeletion(Long productId) {
+        List<ProductImages> remainingImages = imageRepository
+                .findByProductProductIdOrderByDisplayOrderAsc(productId);
 
-        Optional<Integer> maxOrder = imageRepository.findMaxDisplayOrderByProductId(bulkDTO.getProductId());
-        int startOrder = maxOrder.map(order -> order + 1).orElse(0);
-
-        long existingCount = imageRepository.countByProductId(bulkDTO.getProductId());
-        boolean hasPrimary = existingCount > 0;
-
-        List<ProductImages> newImages = new ArrayList<>();
-        int orderCounter = startOrder;
-
-        for (BulkProductImageCreateDTO.ImageDetail imageDetail : bulkDTO.getImages()) {
-            ProductImages image = new ProductImages();
-            image.setProduct(product);
-            image.setImageUrl(imageDetail.getImageUrl());
-
-            // Set display order if not provided
-            image.setDisplayOrder(imageDetail.getDisplayOrder() != null ?
-                    imageDetail.getDisplayOrder() : orderCounter++);
-
-            // Set primary status
-            boolean isPrimary = imageDetail.getIsPrimary() != null ?
-                    imageDetail.getIsPrimary() : (!hasPrimary && newImages.isEmpty());
-            image.setIsPrimary(isPrimary);
-
-            if (isPrimary) {
-                handlePrimaryImageUpdate(bulkDTO.getProductId(), null);
-                hasPrimary = true;
-            }
-
-            newImages.add(image);
-        }
-
-        List<ProductImages> savedImages = imageRepository.saveAll(newImages);
-        log.info("Added {} new product images", savedImages.size());
-
-        return imageMapper.toDto(savedImages);
-    }
-
-    /**
-     * Update product image
-     */
-    @Transactional
-    public ProductImageResponseDTO updateProductImage(Long imageId, ProductImageUpdateDTO updateDTO) {
-        ProductImages existingImage = imageRepository.findById(imageId)
-                .orElseThrow(() -> new EntityNotFoundException("Product image not found"));
-
-        // If updating to primary, handle other images
-        if (Boolean.TRUE.equals(updateDTO.getIsPrimary())) {
-            handlePrimaryImageUpdate(existingImage.getProduct().getProductId(), imageId);
-        }
-
-        // Update fields
-        ProductImages updatedImage = imageMapper.toEntity(updateDTO, existingImage);
-        ProductImages savedImage = imageRepository.save(updatedImage);
-
-        log.info("Updated product image with ID: {}", savedImage.getImageId());
-        return imageMapper.toDto(savedImage);
-    }
-
-    /**
-     * Delete product image
-     */
-    @Transactional
-    public ApiResponse deleteProductImage(Long imageId) {
-        ProductImages image = imageRepository.findById(imageId)
-                .orElseThrow(() -> new EntityNotFoundException("Product image not found"));
-
-        // If this was a primary image, assign primary to the first remaining image
-        if (Boolean.TRUE.equals(image.getIsPrimary())) {
-            List<ProductImages> remainingImages = imageRepository
-                    .findByProductProductIdOrderByDisplayOrderAsc(image.getProduct().getProductId());
-
-            // Remove current image from list
-            remainingImages.removeIf(img -> img.getImageId().equals(imageId));
-
-            if (!remainingImages.isEmpty()) {
-                ProductImages newPrimary = remainingImages.get(0);
-                newPrimary.setIsPrimary(true);
-                imageRepository.save(newPrimary);
-            }
-        }
-
-        // Delete image from storage
-        try {
-            cloudinaryService.deleteFile(image.getImageUrl());
-        } catch (Exception e) {
-            log.warn("Failed to delete image file: {}", e.getMessage());
-        }
-
-        imageRepository.delete(image);
-        log.info("Deleted product image with ID: {}", imageId);
-
-        return new ApiResponse(true, "Product image successfully deleted");
-    }
-
-    /**
-     * Reorder product images
-     */
-    @Transactional
-    public ApiResponse reorderProductImages(Long productId, List<Long> imageIds) {
-        int order = 0;
-        for (Long imageId : imageIds) {
-            ProductImages image = imageRepository.findById(imageId)
-                    .orElseThrow(() -> new EntityNotFoundException("Product image not found: " + imageId));
-
-            if (!image.getProduct().getProductId().equals(productId)) {
-                throw new IllegalArgumentException("Image does not belong to specified product");
-            }
-
-            image.setDisplayOrder(order++);
+        for (int i = 0; i < remainingImages.size(); i++) {
+            ProductImages image = remainingImages.get(i);
+            image.setDisplayOrder(i);
             imageRepository.save(image);
         }
-
-        log.info("Reordered images for product ID: {}", productId);
-        return new ApiResponse(true, "Product images successfully reordered");
-    }
-
-    /**
-     * Helper method to handle primary image updates
-     */
-    private void handlePrimaryImageUpdate(Long productId, Long excludeImageId) {
-        imageRepository.updateOtherImagesNonPrimary(productId, excludeImageId != null ? excludeImageId : -1L);
-    }
-
-    /**
-     * Get all images for a product
-     */
-    @Transactional(readOnly = true)
-    public List<ProductImageResponseDTO> getProductImages(Long productId) {
-        List<ProductImages> images = imageRepository.findByProductProductIdOrderByDisplayOrderAsc(productId);
-        return imageMapper.toDto(images);
-    }
-
-    /**
-     * Get primary image for a product
-     */
-    @Transactional(readOnly = true)
-    public ProductImageResponseDTO getPrimaryImage(Long productId) {
-        ProductImages primaryImage = imageRepository.findByProductProductIdAndIsPrimaryTrue(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("No primary image found for product"));
-        return imageMapper.toDto(primaryImage);
     }
 }

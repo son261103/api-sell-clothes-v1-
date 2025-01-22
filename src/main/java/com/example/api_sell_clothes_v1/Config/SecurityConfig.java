@@ -67,6 +67,15 @@ public class SecurityConfig {
     }
 
     /**
+     * Configure endpoint permissions for Product Images management
+     */
+    private void configureProductImageEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.PRODUCT_IMAGE_ENDPOINTS.forEach((endpoint, permission) ->
+                auth.requestMatchers(endpoint).hasAuthority(permission)
+        );
+    }
+
+    /**
      * Configure endpoint permissions for Product variant management
      */
 
@@ -141,6 +150,7 @@ public class SecurityConfig {
                     configureRoleEndpoints(auth);
                     configureProductEndpoints(auth);
                     configureProductVariantEndpoints(auth);
+                    configureProductImageEndpoints(auth);
                     configureOrderEndpoints(auth);
                     configureUserEndpoints(auth);
                     configureCategoryEndpoints(auth);

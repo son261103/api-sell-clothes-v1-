@@ -4,7 +4,6 @@ import com.example.api_sell_clothes_v1.Constants.ApiPatternConstants;
 import com.example.api_sell_clothes_v1.DTO.ApiResponse;
 import com.example.api_sell_clothes_v1.DTO.ProductImages.*;
 import com.example.api_sell_clothes_v1.Service.ProductImageService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -13,7 +12,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -21,80 +19,63 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProductImageController {
     private final ProductImageService imageService;
-    private final ObjectMapper objectMapper;
 
-    @GetMapping("/hierarchy/{productId}")
-    @PreAuthorize("hasAuthority('VIEW_PRODUCT')")
-    public ResponseEntity<ProductImageHierarchyDTO> getProductImageHierarchy(
-            @PathVariable Long productId) {
-        return ResponseEntity.ok(imageService.getProductImagesHierarchy(productId));
-    }
-
-    @PostMapping(value = "/upload/single", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    /**
+     * Upload multiple images for a product
+     */
+    @PostMapping(value = "/upload/{productId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('EDIT_PRODUCT')")
-    public ResponseEntity<ProductImageResponseDTO> uploadSingleImage(
-            @RequestParam("productId") Long productId,
-            @RequestParam("image") MultipartFile image,
-            @RequestParam(value = "isPrimary", required = false) Boolean isPrimary,
-            @RequestParam(value = "displayOrder", required = false) Integer displayOrder) {
+    public ResponseEntity<List<ProductImageResponseDTO>> uploadImages(
+            @PathVariable Long productId,
+            @RequestParam("files") List<MultipartFile> files) {
         try {
-            ProductImageCreateDTO createDTO = ProductImageCreateDTO.builder()
-                    .productId(productId)
-                    .isPrimary(isPrimary)
-                    .displayOrder(displayOrder)
-                    .build();
-
-            ProductImageResponseDTO response = imageService.addProductImage(createDTO);
-            return new ResponseEntity<>(response, HttpStatus.CREATED);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Error uploading image: " + e.getMessage());
-        }
-    }
-
-    @PostMapping(value = "/upload/bulk", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAuthority('EDIT_PRODUCT')")
-    public ResponseEntity<List<ProductImageResponseDTO>> uploadMultipleImages(
-            @RequestParam("productId") Long productId,
-            @RequestParam("images") List<MultipartFile> images,
-            @RequestParam(value = "details", required = false) String imageDetailsJson) {
-        try {
-            List<BulkProductImageCreateDTO.ImageDetail> imageDetails = new ArrayList<>();
-
-            // If details are provided, parse them
-            if (imageDetailsJson != null && !imageDetailsJson.isEmpty()) {
-                imageDetails = objectMapper.readValue(imageDetailsJson,
-                        objectMapper.getTypeFactory().constructCollectionType(
-                                List.class, BulkProductImageCreateDTO.ImageDetail.class));
-            }
-
-            // Create bulk upload DTO
-            BulkProductImageCreateDTO bulkDTO = BulkProductImageCreateDTO.builder()
-                    .productId(productId)
-                    .images(imageDetails)
-                    .build();
-
-            List<ProductImageResponseDTO> response = imageService.addProductImages(bulkDTO);
+            List<ProductImageResponseDTO> response = imageService.uploadProductImages(productId, files);
             return new ResponseEntity<>(response, HttpStatus.CREATED);
         } catch (Exception e) {
             throw new IllegalArgumentException("Error uploading images: " + e.getMessage());
         }
     }
 
+    /**
+     * Update image file (replace image)
+     */
+    @PutMapping(value = "/update-file/{imageId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('EDIT_PRODUCT')")
+    public ResponseEntity<ProductImageResponseDTO> updateImageFile(
+            @PathVariable Long imageId,
+            @RequestParam("file") MultipartFile newFile) {
+        try {
+            ProductImageResponseDTO response = imageService.updateImageFile(imageId, newFile);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error updating image: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update image properties
+     */
     @PutMapping("/update/{imageId}")
     @PreAuthorize("hasAuthority('EDIT_PRODUCT')")
-    public ResponseEntity<ProductImageResponseDTO> updateProductImage(
+    public ResponseEntity<ProductImageResponseDTO> updateImageProperties(
             @PathVariable Long imageId,
             @RequestBody ProductImageUpdateDTO updateDTO) {
-        return ResponseEntity.ok(imageService.updateProductImage(imageId, updateDTO));
+        return ResponseEntity.ok(imageService.updateImageProperties(imageId, updateDTO));
     }
 
-    @DeleteMapping("/delete/{imageId}")
+    /**
+     * Update primary status
+     */
+    @PutMapping("/primary/{imageId}")
     @PreAuthorize("hasAuthority('EDIT_PRODUCT')")
-    public ResponseEntity<ApiResponse> deleteProductImage(
+    public ResponseEntity<ProductImageResponseDTO> updatePrimaryImage(
             @PathVariable Long imageId) {
-        return ResponseEntity.ok(imageService.deleteProductImage(imageId));
+        return ResponseEntity.ok(imageService.updatePrimaryStatus(imageId));
     }
 
+    /**
+     * Reorder images
+     */
     @PutMapping("/reorder/{productId}")
     @PreAuthorize("hasAuthority('EDIT_PRODUCT')")
     public ResponseEntity<ApiResponse> reorderProductImages(
@@ -103,6 +84,19 @@ public class ProductImageController {
         return ResponseEntity.ok(imageService.reorderProductImages(productId, imageIds));
     }
 
+    /**
+     * Delete image
+     */
+    @DeleteMapping("/{imageId}")
+    @PreAuthorize("hasAuthority('DELETE_PRODUCT')")
+    public ResponseEntity<ApiResponse> deleteProductImage(
+            @PathVariable Long imageId) {
+        return ResponseEntity.ok(imageService.deleteProductImage(imageId));
+    }
+
+    /**
+     * Get all product images
+     */
     @GetMapping("/list/{productId}")
     @PreAuthorize("hasAuthority('VIEW_PRODUCT')")
     public ResponseEntity<List<ProductImageResponseDTO>> getProductImages(
@@ -110,10 +104,23 @@ public class ProductImageController {
         return ResponseEntity.ok(imageService.getProductImages(productId));
     }
 
+    /**
+     * Get primary image
+     */
     @GetMapping("/primary/{productId}")
     @PreAuthorize("hasAuthority('VIEW_PRODUCT')")
     public ResponseEntity<ProductImageResponseDTO> getPrimaryImage(
             @PathVariable Long productId) {
         return ResponseEntity.ok(imageService.getPrimaryImage(productId));
+    }
+
+    /**
+     * Get images hierarchy
+     */
+    @GetMapping("/hierarchy/{productId}")
+    @PreAuthorize("hasAuthority('VIEW_PRODUCT')")
+    public ResponseEntity<ProductImageHierarchyDTO> getProductImageHierarchy(
+            @PathVariable Long productId) {
+        return ResponseEntity.ok(imageService.getProductImagesHierarchy(productId));
     }
 }

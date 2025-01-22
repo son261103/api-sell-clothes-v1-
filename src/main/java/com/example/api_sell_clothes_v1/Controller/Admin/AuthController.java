@@ -118,7 +118,7 @@ public class AuthController {
         }
     }
 
-    @PostMapping("/verify-access-token")
+    @PostMapping("/refresh-token")
     public ResponseEntity<?> verifyAccessToken(@Valid @RequestBody RefreshTokenDTO refreshTokenDTO) {
         try {
             TokenResponseDTO tokenResponse = authService.verifyNewAccess(refreshTokenDTO);
@@ -129,18 +129,16 @@ public class AuthController {
         }
     }
 
-
-
-    @PostMapping("/refresh-token")
-    public ResponseEntity<?> refreshToken(@Valid @RequestBody RefreshTokenDTO refreshTokenDTO) {
-        try {
-            TokenResponseDTO tokenResponse = authService.refreshToken(refreshTokenDTO);
-            return ResponseEntity.ok(tokenResponse);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new ApiResponse(false, e.getMessage()));
-        }
-    }
+//    @PostMapping("/refresh-token")
+//    public ResponseEntity<?> refreshToken(@Valid @RequestBody RefreshTokenDTO refreshTokenDTO) {
+//        try {
+//            TokenResponseDTO tokenResponse = authService.refreshToken(refreshTokenDTO);
+//            return ResponseEntity.ok(tokenResponse);
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+//                    .body(new ApiResponse(false, e.getMessage()));
+//        }
+//    }
 
     @PostMapping("/resend-otp")
     public ResponseEntity<?> resendOtp(@RequestParam String email) {
