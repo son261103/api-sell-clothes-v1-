@@ -5,7 +5,8 @@ public class CorsConstants {
     public static final String[] ALLOWED_ORIGINS = {
             "http://localhost:3000",
             "http://localhost:8080",
-            "http://localhost:5173"
+            "http://localhost:5173",
+            "http://localhost:3001"
     };
 
     public static final String[] ALLOWED_METHODS = {

@@ -2,6 +2,7 @@ package com.example.api_sell_clothes_v1.Controller.Admin;
 
 import com.example.api_sell_clothes_v1.DTO.ApiResponse;
 import com.example.api_sell_clothes_v1.DTO.Auth.*;
+import com.example.api_sell_clothes_v1.Exceptions.UserStatusException;
 import com.example.api_sell_clothes_v1.Service.AuthenticationService;
 import com.example.api_sell_clothes_v1.Service.EmailService;
 import com.example.api_sell_clothes_v1.Service.OtpService;
@@ -12,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -59,13 +61,26 @@ public class AuthController {
     // Endpoint đăng nhập với OTP
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginDTO loginRequest) {
+        log.info("Login attempt for user: {}", loginRequest.getLoginId());
         try {
             TokenResponseDTO tokenResponse = authService.authenticate(loginRequest);
+            log.info("Login successful for user: {}", loginRequest.getLoginId());
             return ResponseEntity.ok(tokenResponse);
-        } catch (Exception e) {
+        } catch (BadCredentialsException e) {
+            log.error("Login failed - Bad credentials for user: {}", loginRequest.getLoginId());
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
-                    .body(new ApiResponse(false, "Authentication failed: " + e.getMessage()));
+                    .body(new ApiResponse(false, "Thông tin đăng nhập không chính xác"));
+        } catch (UserStatusException e) {
+            log.error("Login failed - Account status issue for user: {}", loginRequest.getLoginId());
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            log.error("Login failed - Unexpected error for user {}: {}", loginRequest.getLoginId(), e.getMessage());
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiResponse(false, "Đã xảy ra lỗi trong quá trình đăng nhập"));
         }
     }
 

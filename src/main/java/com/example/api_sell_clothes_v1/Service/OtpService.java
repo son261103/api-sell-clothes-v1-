@@ -27,7 +27,7 @@ public class OtpService {
     private static final long OTP_EXPIRATION_MINUTES = 5;
 
     // Số lần tối đa được gửi OTP trong 24h
-    private static final int MAX_OTP_REQUESTS_PER_DAY = 5;
+    private static final int MAX_OTP_REQUESTS_PER_DAY = 10;
 
     private static final long RESEND_COOLDOWN_SECONDS = 60;
 

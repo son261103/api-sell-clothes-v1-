@@ -56,15 +56,16 @@ public class AuthenticationService {
 
             // Kiểm tra status và trả về thông báo cụ thể
             switch (user.getStatus()) {
-                case UserStatus.PENDING:
-                    log.error("User account is inactive: {}", request.getLoginId());
-                    throw new UserStatusException("Account has not been activated. Please check your email to activate your account.");
+//                case UserStatus.PENDING:
+//                    log.error("User account is inactive: {}", request.getLoginId());
+//                    throw new UserStatusException("Account has not been activated. Please check your email to activate your account.");
                 case UserStatus.BANNED:
                     log.error("User account is banned: {}", request.getLoginId());
                     throw new UserStatusException("The account has been permanently locked. Please contact admin for more details.");
                 case UserStatus.LOCKED:
                     log.error("User account is locked: {}", request.getLoginId());
                     throw new UserStatusException("Account temporarily locked. Please try again later or contact admin.");
+                case UserStatus.PENDING:
                 case ACTIVE:
                     break;
                 default:
