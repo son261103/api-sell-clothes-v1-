@@ -7,6 +7,9 @@ import com.example.api_sell_clothes_v1.Service.AuthenticationService;
 import com.example.api_sell_clothes_v1.Service.EmailService;
 import com.example.api_sell_clothes_v1.Service.OtpService;
 import com.example.api_sell_clothes_v1.Service.RefreshTokenService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -60,12 +63,23 @@ public class AuthController {
 
     // Endpoint đăng nhập với OTP
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginDTO loginRequest) {
+    public ResponseEntity<?> login(
+            @Valid @RequestBody LoginDTO loginRequest,
+            HttpServletResponse response) {
         log.info("Login attempt for user: {}", loginRequest.getLoginId());
         try {
             TokenResponseDTO tokenResponse = authService.authenticate(loginRequest);
+
+            // Set refresh token as HTTP-only cookie
+            Cookie refreshTokenCookie = createRefreshTokenCookie(tokenResponse.getRefreshToken());
+            response.addCookie(refreshTokenCookie);
+
+            // Remove refresh token from response body for security
+            tokenResponse.setRefreshToken(null);
+
             log.info("Login successful for user: {}", loginRequest.getLoginId());
             return ResponseEntity.ok(tokenResponse);
+
         } catch (BadCredentialsException e) {
             log.error("Login failed - Bad credentials for user: {}", loginRequest.getLoginId());
             return ResponseEntity
@@ -79,10 +93,11 @@ public class AuthController {
         } catch (Exception e) {
             log.error("Login failed - Unexpected error for user {}: {}", loginRequest.getLoginId(), e.getMessage());
             return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse(false, "Đã xảy ra lỗi trong quá trình đăng nhập"));
         }
     }
+
 
 
     // Endpoint đăng ký người dùng
@@ -167,14 +182,51 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(@RequestBody RefreshTokenDTO refreshTokenDTO) {
+    public ResponseEntity<?> logout(
+            HttpServletRequest request,
+            HttpServletResponse response) {
         try {
-            ApiResponse response = authService.logout(refreshTokenDTO.getRefreshToken());
-            return ResponseEntity.ok(response);
+            // Lấy refresh token từ cookie
+            String refreshToken = extractRefreshTokenFromCookie(request);
+            if (refreshToken != null) {
+                // Xóa refresh token ở server
+                authService.logout(refreshToken);
+
+                // Xóa cookie refresh token
+                Cookie cookie = createRefreshTokenCookie("");
+                cookie.setMaxAge(0);
+                response.addCookie(cookie);
+            }
+
+            return ResponseEntity.ok(new ApiResponse(true, "Đăng xuất thành công"));
         } catch (Exception e) {
+            log.error("Logout failed: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(new ApiResponse(false, "Logout failed: " + e.getMessage()));
+                    .body(new ApiResponse(false, "Đăng xuất thất bại: " + e.getMessage()));
         }
+    }
+
+    // Helper methods
+    private Cookie createRefreshTokenCookie(String refreshToken) {
+        Cookie cookie = new Cookie("refreshToken", refreshToken);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true); // Enable on HTTPS
+        cookie.setPath("/");
+        cookie.setMaxAge(7 * 24 * 60 * 60); // 7 days
+        cookie.setAttribute("SameSite", "Strict");
+        return cookie;
+    }
+
+    private String extractRefreshTokenFromCookie(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("refreshToken".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+        return null;
     }
 
 }

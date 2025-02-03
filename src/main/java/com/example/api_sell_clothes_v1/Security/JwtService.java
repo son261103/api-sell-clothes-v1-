@@ -2,9 +2,7 @@ package com.example.api_sell_clothes_v1.Security;
 
 import com.example.api_sell_clothes_v1.Entity.Roles;
 import com.example.api_sell_clothes_v1.Entity.Users;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.Getter;
@@ -93,13 +91,26 @@ public class JwtService {
         return claimsResolver.apply(claims);
     }
 
-    private Claims extractAllClaims(String token) {
-        return Jwts
-                .parser()
-                .setSigningKey(getSignInKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+//    private Claims extractAllClaims(String token) {
+//        return Jwts
+//                .parser()
+//                .setSigningKey(getSignInKey())
+//                .build()
+//                .parseClaimsJws(token)
+//                .getBody();
+//    }
+
+    public Claims extractAllClaims(String token) {
+        try {
+            return Jwts
+                    .parser()
+                    .setSigningKey(getSignInKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (MalformedJwtException e) {
+            throw new JwtException("Malformed JWT token", e);
+        }
     }
 
     private Key getSignInKey() {
