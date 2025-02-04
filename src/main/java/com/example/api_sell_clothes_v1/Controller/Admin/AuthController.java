@@ -26,7 +26,7 @@ public class AuthController {
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
     private final AuthenticationService authService;
     private final OtpService otpService;
-    private final RefreshTokenService refreshTokenService ;
+    private final RefreshTokenService refreshTokenService;
 
     // Endpoint gửi OTP vào email người dùng
     @PostMapping("/send-otp")
@@ -99,7 +99,6 @@ public class AuthController {
     }
 
 
-
     // Endpoint đăng ký người dùng
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterDTO registerDTO, @RequestParam(required = false) String otp) {
@@ -148,12 +147,61 @@ public class AuthController {
         }
     }
 
+//    @PostMapping("/refresh-token")
+//    public ResponseEntity<?> verifyAccessToken(@Valid @RequestBody RefreshTokenDTO refreshTokenDTO) {
+//        try {
+//            TokenResponseDTO tokenResponse = authService.verifyNewAccess(refreshTokenDTO);
+//            return ResponseEntity.ok(tokenResponse);
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+//                    .body(new ApiResponse(false, e.getMessage()));
+//        }
+//    }
+
     @PostMapping("/refresh-token")
-    public ResponseEntity<?> verifyAccessToken(@Valid @RequestBody RefreshTokenDTO refreshTokenDTO) {
+    public ResponseEntity<?> verifyAccessToken(HttpServletRequest request) {
         try {
+            // Lấy refresh token từ cookie
+            Cookie[] cookies = request.getCookies();
+            String refreshToken = null;
+            log.warn("Refresh token", cookies);
+            if (cookies != null) {
+                for (Cookie cookie : cookies) {
+                    if ("refreshToken".equals(cookie.getName())) {
+                        refreshToken = cookie.getValue();
+                        break;
+                    }
+                }
+            }
+
+            // Kiểm tra refresh token có tồn tại không
+            if (refreshToken == null) {
+                log.warn("No refresh token found in cookies.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ApiResponse(false, "No refresh token found in cookie"));
+            }
+
+            // Log refresh token nhận được
+            log.info("Received refresh token: {}", refreshToken);
+
+            // Gọi service để verify và tạo token mới
+            RefreshTokenDTO refreshTokenDTO = new RefreshTokenDTO();
+            refreshTokenDTO.setRefreshToken(refreshToken);
+
             TokenResponseDTO tokenResponse = authService.verifyNewAccess(refreshTokenDTO);
+            // Log access token cũ và mới
+
+            if (tokenResponse == null || tokenResponse.getAccessToken() == null) {
+                log.error("Failed to generate new access token.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ApiResponse(false, "Failed to refresh access token"));
+            }
+
+            log.info("New access token: {}", tokenResponse.getAccessToken());
+
             return ResponseEntity.ok(tokenResponse);
         } catch (Exception e) {
+            log.error("Error while refreshing token: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ApiResponse(false, e.getMessage()));
         }

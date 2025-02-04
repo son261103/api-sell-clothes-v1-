@@ -277,6 +277,44 @@ public class AuthenticationService {
         }
     }
 
+//    public TokenResponseDTO verifyNewAccess(RefreshTokenDTO refreshTokenDTO) {
+//        log.info("Processing refresh token request");
+//        try {
+//            // 1. Verify refresh token
+//            if (!refreshTokenService.verifyRefreshTokenForNewAccess(refreshTokenDTO.getRefreshToken())) {
+//                throw new RuntimeException("Invalid refresh token");
+//            }
+//
+//            // 2. Lấy user từ refresh token
+//            RefreshTokens storedToken = refreshTokenRepository.findByRefreshToken(refreshTokenDTO.getRefreshToken()).get();
+//            Users user = storedToken.getUser();
+//
+//            // 3. Tạo custom user details
+//            CustomUserDetails userDetails = new CustomUserDetails(user, authorityService.getAuthorities(user));
+//
+//            // 4. Tạo access token mới
+//            String newAccessToken = jwtService.generateToken(userDetails);
+//
+//            // 5. Build response với refresh token cũ
+//            return TokenResponseDTO.builder()
+//                    .accessToken(newAccessToken)
+//                    .refreshToken(refreshTokenDTO.getRefreshToken()) // Giữ nguyên refresh token cũ
+//                    .tokenType("Bearer")
+//                    .expiresIn(jwtService.getJwtExpiration())
+//                    .username(user.getUsername())
+//                    .email(user.getEmail())
+//                    .userId(user.getUserId())
+//                    .fullName(user.getFullName())
+//                    .roles(jwtService.extractRoles(newAccessToken))
+//                    .permissions(jwtService.extractPermissions(newAccessToken))
+//                    .build();
+//
+//        } catch (Exception e) {
+//            log.error("Failed to refresh token: {}", e.getMessage());
+//            throw new RuntimeException("Failed to refresh token: " + e.getMessage());
+//        }
+//    }
+
     public TokenResponseDTO verifyNewAccess(RefreshTokenDTO refreshTokenDTO) {
         log.info("Processing refresh token request");
         try {
@@ -286,16 +324,22 @@ public class AuthenticationService {
             }
 
             // 2. Lấy user từ refresh token
-            RefreshTokens storedToken = refreshTokenRepository.findByRefreshToken(refreshTokenDTO.getRefreshToken()).get();
+            RefreshTokens storedToken = refreshTokenRepository.findByRefreshToken(refreshTokenDTO.getRefreshToken())
+                    .orElseThrow(() -> new RuntimeException("Refresh token not found"));
             Users user = storedToken.getUser();
 
-            // 3. Tạo custom user details
+            // 3. Kiểm tra trạng thái user
+            if (user.getStatus().equals(UserStatus.BANNED)) {
+                throw new UserStatusException("User account is banned");
+            }
+
+            // 4. Tạo custom user details
             CustomUserDetails userDetails = new CustomUserDetails(user, authorityService.getAuthorities(user));
 
-            // 4. Tạo access token mới
+            // 5. Tạo access token mới
             String newAccessToken = jwtService.generateToken(userDetails);
 
-            // 5. Build response với refresh token cũ
+            // 6. Build response với refresh token cũ
             return TokenResponseDTO.builder()
                     .accessToken(newAccessToken)
                     .refreshToken(refreshTokenDTO.getRefreshToken()) // Giữ nguyên refresh token cũ
@@ -314,7 +358,6 @@ public class AuthenticationService {
             throw new RuntimeException("Failed to refresh token: " + e.getMessage());
         }
     }
-
 
     public TokenResponseDTO refreshToken(RefreshTokenDTO refreshTokenDTO) {
         log.info("Processing refresh token request");

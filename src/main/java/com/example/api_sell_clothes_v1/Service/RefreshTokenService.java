@@ -2,6 +2,7 @@ package com.example.api_sell_clothes_v1.Service;
 
 import com.example.api_sell_clothes_v1.Entity.RefreshTokens;
 import com.example.api_sell_clothes_v1.Entity.Users;
+import com.example.api_sell_clothes_v1.Enums.Status.UserStatus;
 import com.example.api_sell_clothes_v1.Repository.RefreshTokenRepository;
 import com.example.api_sell_clothes_v1.Repository.UserRepository;
 import com.example.api_sell_clothes_v1.Security.JwtService;
@@ -30,7 +31,31 @@ public class RefreshTokenService {
         refreshTokenRepository.deleteAllByUser(user);
     }
 
-    @Transactional
+//    @Transactional
+//    public boolean verifyRefreshTokenForNewAccess(String refreshToken) {
+//        log.info("Verifying refresh token for generating new access token");
+//        try {
+//            // 1. Tìm refresh token trong database
+//            RefreshTokens storedToken = refreshTokenRepository.findByRefreshToken(refreshToken)
+//                    .orElseThrow(() -> new RuntimeException("Refresh token not found in database"));
+//
+//            // 2. Kiểm tra token có hết hạn chưa
+//            if (storedToken.getExpirationTime().isBefore(LocalDateTime.now())) {
+//                log.error("Refresh token has expired");
+//                refreshTokenRepository.delete(storedToken);
+//                throw new RuntimeException("Refresh token was expired. Please login again");
+//            }
+//
+//            // 3. Nếu token còn hạn thì return true
+//            log.info("Refresh token is valid");
+//            return true;
+//
+//        } catch (Exception e) {
+//            log.error("Error verifying refresh token: {}", e.getMessage());
+//            throw new RuntimeException("Failed to verify refresh token: " + e.getMessage());
+//        }
+//    }
+
     public boolean verifyRefreshTokenForNewAccess(String refreshToken) {
         log.info("Verifying refresh token for generating new access token");
         try {
@@ -45,7 +70,13 @@ public class RefreshTokenService {
                 throw new RuntimeException("Refresh token was expired. Please login again");
             }
 
-            // 3. Nếu token còn hạn thì return true
+            // 3. Kiểm tra user status
+            if (storedToken.getUser().getStatus() != UserStatus.ACTIVE) {
+                log.error("User is not active");
+                throw new RuntimeException("User account is not active");
+            }
+
+            // 4. Nếu token còn hạn thì return true
             log.info("Refresh token is valid");
             return true;
 
