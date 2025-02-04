@@ -195,25 +195,25 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Set allowed origins
-        configuration.setAllowedOrigins(Arrays.asList(CorsConstants.ALLOWED_ORIGINS));
+        // Cho phép tất cả các origin từ danh sách cấu hình
+        configuration.setAllowedOriginPatterns(List.of(CorsConstants.ALLOWED_ORIGINS));
 
-        // Set allowed methods
-        configuration.setAllowedMethods(Arrays.asList(CorsConstants.ALLOWED_METHODS));
+        // Cho phép tất cả các phương thức HTTP được cấu hình
+        configuration.setAllowedMethods(List.of(CorsConstants.ALLOWED_METHODS));
 
-        // Set allowed headers
-        configuration.setAllowedHeaders(Arrays.asList(CorsConstants.ALLOWED_HEADERS));
+        // Cho phép tất cả các header được cấu hình
+        configuration.setAllowedHeaders(List.of(CorsConstants.ALLOWED_HEADERS));
 
-        // Allow credentials
+        // Cho phép gửi credentials (cookies, Authorization headers,...)
         configuration.setAllowCredentials(true);
 
-        // Set exposed headers
+        // Thiết lập các header mà client có thể đọc từ response
         configuration.setExposedHeaders(List.of(JwtConstants.HEADER_STRING));
 
-        // Set max age
+        // Thời gian cache CORS (giảm request preflight)
         configuration.setMaxAge(CorsConstants.MAX_AGE);
 
-        // Create URL based CORS configuration source
+        // Đăng ký cấu hình CORS với tất cả các URL
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
 

@@ -26,7 +26,7 @@ public class AuthController {
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
     private final AuthenticationService authService;
     private final OtpService otpService;
-    private final RefreshTokenService refreshTokenService;
+    private final RefreshTokenService refreshTokenService ;
 
     // Endpoint gửi OTP vào email người dùng
     @PostMapping("/send-otp")
@@ -99,6 +99,7 @@ public class AuthController {
     }
 
 
+
     // Endpoint đăng ký người dùng
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterDTO registerDTO, @RequestParam(required = false) String otp) {
@@ -164,7 +165,7 @@ public class AuthController {
             // Lấy refresh token từ cookie
             Cookie[] cookies = request.getCookies();
             String refreshToken = null;
-            log.warn("Refresh token", cookies);
+
             if (cookies != null) {
                 for (Cookie cookie : cookies) {
                     if ("refreshToken".equals(cookie.getName())) {
@@ -176,32 +177,24 @@ public class AuthController {
 
             // Kiểm tra refresh token có tồn tại không
             if (refreshToken == null) {
-                log.warn("No refresh token found in cookies.");
+                log.warn("No refresh token found in cookie");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(new ApiResponse(false, "No refresh token found in cookie"));
             }
 
-            // Log refresh token nhận được
-            log.info("Received refresh token: {}", refreshToken);
-
-            // Gọi service để verify và tạo token mới
+            // Tạo DTO từ refresh token lấy được từ cookie
             RefreshTokenDTO refreshTokenDTO = new RefreshTokenDTO();
             refreshTokenDTO.setRefreshToken(refreshToken);
 
+            // Gọi service để verify và tạo token mới
             TokenResponseDTO tokenResponse = authService.verifyNewAccess(refreshTokenDTO);
-            // Log access token cũ và mới
 
-            if (tokenResponse == null || tokenResponse.getAccessToken() == null) {
-                log.error("Failed to generate new access token.");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new ApiResponse(false, "Failed to refresh access token"));
-            }
-
+            // Log token mới được tạo
             log.info("New access token: {}", tokenResponse.getAccessToken());
 
             return ResponseEntity.ok(tokenResponse);
         } catch (Exception e) {
-            log.error("Error while refreshing token: {}", e.getMessage(), e);
+            log.error("Error during token refresh: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ApiResponse(false, e.getMessage()));
         }
@@ -258,7 +251,7 @@ public class AuthController {
     private Cookie createRefreshTokenCookie(String refreshToken) {
         Cookie cookie = new Cookie("refreshToken", refreshToken);
         cookie.setHttpOnly(true);
-        cookie.setSecure(true); // Enable on HTTPS
+        cookie.setSecure(false); // Enable on HTTPS
         cookie.setPath("/");
         cookie.setMaxAge(7 * 24 * 60 * 60); // 7 days
         cookie.setAttribute("SameSite", "Strict");
