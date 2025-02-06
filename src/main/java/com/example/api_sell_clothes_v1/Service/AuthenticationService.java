@@ -354,7 +354,7 @@ public class AuthenticationService {
                     .build();
 
         } catch (Exception e) {
-            log.error("Failed to refresh token: {}", e.getMessage());
+            log.warn("Failed to refresh token: {}", e.getMessage());
             throw new RuntimeException("Failed to refresh token: " + e.getMessage());
         }
     }

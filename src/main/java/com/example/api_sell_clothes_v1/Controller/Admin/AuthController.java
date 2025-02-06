@@ -70,12 +70,18 @@ public class AuthController {
         try {
             TokenResponseDTO tokenResponse = authService.authenticate(loginRequest);
 
-            // Set refresh token as HTTP-only cookie
-            Cookie refreshTokenCookie = createRefreshTokenCookie(tokenResponse.getRefreshToken());
-            response.addCookie(refreshTokenCookie);
-
-            // Remove refresh token from response body for security
-            tokenResponse.setRefreshToken(null);
+            // Chỉ set cookie khi rememberMe là true
+            if (loginRequest.isRememberMe()) {
+                Cookie refreshTokenCookie = createRefreshTokenCookie(tokenResponse.getRefreshToken());
+                response.addCookie(refreshTokenCookie);
+                // Remove refresh token from response body when using cookie
+                tokenResponse.setRefreshToken(null);
+                log.info("Remember me enabled - Set refresh token cookie for user: {}", loginRequest.getLoginId());
+            } else {
+                // Không set cookie khi không dùng remember me
+                // Giữ refresh token trong response body để frontend lưu vào sessionStorage
+                log.info("Remember me disabled - Sending refresh token in response body for user: {}", loginRequest.getLoginId());
+            }
 
             log.info("Login successful for user: {}", loginRequest.getLoginId());
             return ResponseEntity.ok(tokenResponse);
