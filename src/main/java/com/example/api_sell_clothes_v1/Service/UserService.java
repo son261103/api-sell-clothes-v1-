@@ -157,26 +157,11 @@ public class UserService {
 
     //    Update user status
     @Transactional
-    public ApiResponse updateUserStatus(Long userId, int statusCode) {
+    public ApiResponse updateUserStatus(Long userId, UserStatus newStatus) {
         try {
             // Kiểm tra user tồn tại
             Users user = userRepository.findById(userId)
                     .orElseThrow(() -> new EntityNotFoundException("User not found"));
-
-            // Chuyển đổi code sang UserStatus
-            UserStatus newStatus;
-            try {
-                newStatus = UserStatus.fromCode(statusCode);
-            } catch (IllegalArgumentException e) {
-                StringBuilder message = new StringBuilder("Invalid status code. Valid states are:\n");
-                for (UserStatus status : UserStatus.values()) {
-                    message.append(String.format("%d - %s (%s)\n",
-                            status.getCode(),
-                            status.name(),
-                            status.getDescription()));
-                }
-                return new ApiResponse(false, message.toString());
-            }
 
             // Kiểm tra logic chuyển đổi trạng thái
             if (!isValidStatusTransition(user.getStatus(), newStatus)) {
@@ -197,11 +182,14 @@ public class UserService {
                     String.format("Update status to %s (%s) successfully",
                             newStatus.name(), newStatus.getDescription()));
 
+        } catch (IllegalArgumentException e) {
+            return new ApiResponse(false, "Invalid status: " + e.getMessage());
         } catch (Exception e) {
             log.error("Error updating user status: {}", e.getMessage());
-            return new ApiResponse(false, "Error updating status:" + e.getMessage());
+            return new ApiResponse(false, "Error updating status: " + e.getMessage());
         }
     }
+
 
     private boolean isValidStatusTransition(UserStatus currentStatus, UserStatus newStatus) {
         // Nếu trạng thái giống nhau

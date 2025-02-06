@@ -92,11 +92,12 @@ public class UserController {
     public ResponseEntity<ApiResponse> updateUserStatus(
             @PathVariable Long id,
             @Valid @RequestBody UserStatusUpdateDTO statusUpdateDTO) {
-        ApiResponse response = userService.updateUserStatus(id, Integer.parseInt(statusUpdateDTO.getStatus()));
+        ApiResponse response = userService.updateUserStatus(id, UserStatus.valueOf(statusUpdateDTO.getStatus().toUpperCase()));
         return response.isSuccess()
                 ? ResponseEntity.ok(response)
                 : ResponseEntity.badRequest().body(response);
     }
+
 
     @GetMapping("/username/{username}")
     @PreAuthorize("hasAuthority('VIEW_CUSTOMER')")
