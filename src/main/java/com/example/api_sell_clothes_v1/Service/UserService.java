@@ -8,7 +8,6 @@ import com.example.api_sell_clothes_v1.Entity.Roles;
 import com.example.api_sell_clothes_v1.Entity.Users;
 import com.example.api_sell_clothes_v1.Enums.Status.UserStatus;
 import com.example.api_sell_clothes_v1.Exceptions.FileHandlingException;
-import com.example.api_sell_clothes_v1.Exceptions.UserStatusException;
 import com.example.api_sell_clothes_v1.Mapper.UserMapper;
 import com.example.api_sell_clothes_v1.Repository.RefreshTokenRepository;
 import com.example.api_sell_clothes_v1.Repository.RoleRepository;
@@ -16,6 +15,8 @@ import com.example.api_sell_clothes_v1.Repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +24,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 @Slf4j
@@ -50,12 +50,31 @@ public class UserService {
     }
 
     /**
-     * Get all users
+     * Get all users with pagination and search
      */
     @Transactional(readOnly = true)
-    public List<UserResponseDTO> getAllUsers() {
-        List<Users> users = userRepository.findAll();
-        return userMapper.toDto(users);
+    public Page<UserResponseDTO> getAllUsers(Pageable pageable, String search, UserStatus status) {
+        Page<Users> usersPage;
+
+        if (search != null && !search.trim().isEmpty()) {
+            if (status != null) {
+                // Search with status filter
+                usersPage = userRepository.findByStatusAndSearchCriteria(status, search.trim(), pageable);
+            } else {
+                // Search without status filter
+                usersPage = userRepository.findBySearchCriteria(search.trim(), pageable);
+            }
+        } else {
+            if (status != null) {
+                // Only status filter
+                usersPage = userRepository.findByStatus(status, pageable);
+            } else {
+                // No filters
+                usersPage = userRepository.findAll(pageable);
+            }
+        }
+
+        return usersPage.map(userMapper::toDto);
     }
 
     /**
@@ -99,7 +118,7 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
 
         // Validate status for update
-        validateUserStatus(existingUser);
+//        validateUserStatus(existingUser);
 
         // Validate unique fields if changed
         validateUniqueFieldsForUpdate(updateDTO, existingUser);
@@ -201,17 +220,17 @@ public class UserService {
         switch (currentStatus) {
             case PENDING:
                 // PENDING chỉ có thể -> ACTIVE hoặc BANNED
-                return newStatus == UserStatus.ACTIVE || newStatus == UserStatus.BANNED;
+                return newStatus == UserStatus.ACTIVE || newStatus == UserStatus.BANNER;
 
             case ACTIVE:
                 // ACTIVE -> LOCKED hoặc BANNED
-                return newStatus == UserStatus.LOCKED || newStatus == UserStatus.BANNED;
+                return newStatus == UserStatus.LOCKED || newStatus == UserStatus.BANNER;
 
             case LOCKED:
                 // LOCKED -> ACTIVE hoặc BANNED
-                return newStatus == UserStatus.ACTIVE || newStatus == UserStatus.BANNED;
+                return newStatus == UserStatus.ACTIVE || newStatus == UserStatus.BANNER;
 
-            case BANNED:
+            case BANNER:
                 // BANNED không thể chuyển sang trạng thái khác
                 return false;
 
@@ -281,11 +300,11 @@ public class UserService {
         }
     }
 
-    private void validateUserStatus(Users user) {
-        if (user.getStatus() == UserStatus.BANNED || user.getStatus() == UserStatus.LOCKED) {
-            throw new UserStatusException("Account has been locked or banned");
-        }
-    }
+//    private void validateUserStatus(Users user) {
+//        if (user.getStatus() == UserStatus.LOCKED || user.getStatus() == UserStatus.BANNER) {
+//            throw new IllegalArgumentException("Account has been locked or banned");
+//        }
+//    }
 
     private void validateUniqueFieldsForUpdate(UserUpdateDTO updateDTO, Users existingUser) {
         if (updateDTO.getUsername() != null &&

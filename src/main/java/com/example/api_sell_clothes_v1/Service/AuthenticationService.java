@@ -59,7 +59,7 @@ public class AuthenticationService {
 //                case UserStatus.PENDING:
 //                    log.error("User account is inactive: {}", request.getLoginId());
 //                    throw new UserStatusException("Account has not been activated. Please check your email to activate your account.");
-                case UserStatus.BANNED:
+                case UserStatus.BANNER:
                     log.error("User account is banned: {}", request.getLoginId());
                     throw new UserStatusException("The account has been permanently locked. Please contact admin for more details.");
                 case UserStatus.LOCKED:
@@ -237,7 +237,7 @@ public class AuthenticationService {
                 throw new RuntimeException("User is already verified");
             }
 
-            if (user.getStatus() == UserStatus.BANNED) {
+            if (user.getStatus() == UserStatus.BANNER) {
                 throw new RuntimeException("account has been banned");
             }
 
@@ -329,7 +329,7 @@ public class AuthenticationService {
             Users user = storedToken.getUser();
 
             // 3. Kiểm tra trạng thái user
-            if (user.getStatus().equals(UserStatus.BANNED)) {
+            if (user.getStatus().equals(UserStatus.BANNER)) {
                 throw new UserStatusException("User account is banned");
             }
 

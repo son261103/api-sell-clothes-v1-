@@ -31,7 +31,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         switch (user.getStatus()) {
 //            case UserStatus.PENDING:
 //                throw new RuntimeException("Account has not been activated");
-            case UserStatus.BANNED:
+            case UserStatus.BANNER:
                 throw new RuntimeException("account has been banned");
             case UserStatus.LOCKED:
                 throw new RuntimeException("account has been locked");
