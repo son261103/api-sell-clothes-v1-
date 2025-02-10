@@ -78,25 +78,21 @@ public class UserService {
     }
 
     /**
-     * Create new user with avatar and default role
+     * Create new user
      */
     @Transactional
-    public UserResponseDTO createUser(UserCreateDTO createDTO, MultipartFile avatarFile) {
+    public UserResponseDTO createUser(UserCreateDTO createDTO) {
         // Validate unique constraints
         validateUniqueFields(createDTO.getUsername(), createDTO.getEmail());
 
         // Create user entity
         Users user = userMapper.toEntity(createDTO);
         user.setPasswordHash(passwordEncoder.encode(createDTO.getPassword()));
-        user.setStatus(UserStatus.ACTIVE);  // Set PENDING by default for email verification
+        user.setStatus(UserStatus.ACTIVE);
 
         // Set timestamps
         LocalDateTime now = LocalDateTime.now();
         user.setLastLoginAt(now);
-
-        // Upload avatar if provided
-        String avatarUrl = userAvatarService.uploadAvatar(avatarFile);
-        user.setAvatar(avatarUrl);
 
         // Set default role
         Roles customerRole = roleRepository.findByName(DEFAULT_ROLE)
@@ -110,37 +106,103 @@ public class UserService {
     }
 
     /**
-     * Update user information and avatar
+     * Update user information
      */
     @Transactional
-    public UserResponseDTO updateUser(Long userId, UserUpdateDTO updateDTO, MultipartFile avatarFile) {
+    public UserResponseDTO updateUser(Long userId, UserUpdateDTO updateDTO) {
         Users existingUser = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
 
-        // Validate status for update
-//        validateUserStatus(existingUser);
-
         // Validate unique fields if changed
         validateUniqueFieldsForUpdate(updateDTO, existingUser);
-
-        // Update avatar if provided
-        if (avatarFile != null && !avatarFile.isEmpty()) {
-            try {
-                String newAvatarUrl = userAvatarService.updateAvatar(avatarFile, existingUser.getAvatar());
-                existingUser.setAvatar(newAvatarUrl);
-            } catch (FileHandlingException e) {
-                log.warn("Avatar update failed but continuing with user update: {}", e.getMessage());
-            }
-        }
 
         // Update user information
         updateUserFields(existingUser, updateDTO);
 
         Users updatedUser = userRepository.save(existingUser);
-        log.info("Updated user with ID: {}", updatedUser.getUserId());
+        log.info("Updated user info for ID: {}", updatedUser.getUserId());
 
         return userMapper.toDto(updatedUser);
     }
+
+    /**
+     * Upload avatar for user
+     */
+    @Transactional
+    public UserResponseDTO uploadAvatar(Long userId, MultipartFile avatarFile) {
+        if (avatarFile == null || avatarFile.isEmpty()) {
+            throw new IllegalArgumentException("Avatar file is required");
+        }
+
+        Users existingUser = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
+
+        try {
+            String avatarUrl = userAvatarService.uploadAvatar(avatarFile);
+            existingUser.setAvatar(avatarUrl);
+
+            Users updatedUser = userRepository.save(existingUser);
+            log.info("Uploaded avatar for user ID: {}", updatedUser.getUserId());
+
+            return userMapper.toDto(updatedUser);
+        } catch (FileHandlingException e) {
+            log.error("Failed to upload avatar for user {}: {}", userId, e.getMessage());
+            throw new FileHandlingException("Failed to upload avatar: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update existing avatar
+     */
+    @Transactional
+    public UserResponseDTO updateAvatar(Long userId, MultipartFile avatarFile) {
+        if (avatarFile == null || avatarFile.isEmpty()) {
+            throw new IllegalArgumentException("Avatar file is required");
+        }
+
+        Users existingUser = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
+
+        try {
+            String newAvatarUrl = userAvatarService.updateAvatar(avatarFile, existingUser.getAvatar());
+            existingUser.setAvatar(newAvatarUrl);
+
+            Users updatedUser = userRepository.save(existingUser);
+            log.info("Updated avatar for user ID: {}", updatedUser.getUserId());
+
+            return userMapper.toDto(updatedUser);
+        } catch (FileHandlingException e) {
+            log.error("Failed to update avatar for user {}: {}", userId, e.getMessage());
+            throw new FileHandlingException("Failed to update avatar: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Delete avatar
+     */
+    @Transactional
+    public UserResponseDTO deleteAvatar(Long userId) {
+        Users existingUser = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
+
+        if (existingUser.getAvatar() != null) {
+            try {
+                userAvatarService.deleteAvatar(existingUser.getAvatar());
+                existingUser.setAvatar(null);
+
+                Users updatedUser = userRepository.save(existingUser);
+                log.info("Deleted avatar for user ID: {}", updatedUser.getUserId());
+
+                return userMapper.toDto(updatedUser);
+            } catch (Exception e) {
+                log.error("Failed to delete avatar for user {}: {}", userId, e.getMessage());
+                throw new FileHandlingException("Failed to delete avatar: " + e.getMessage());
+            }
+        }
+
+        return userMapper.toDto(existingUser);
+    }
+
 
     /**
      * Delete user and their avatar

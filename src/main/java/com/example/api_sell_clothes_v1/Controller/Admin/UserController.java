@@ -22,8 +22,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.util.List;
-
 @RestController
 @RequestMapping(ApiPatternConstants.API_USERS)
 @RequiredArgsConstructor
@@ -31,7 +29,7 @@ public class UserController {
     private final UserService userService;
     private final ObjectMapper objectMapper;
 
-    // Basic CRUD operations without file upload remain unchanged
+    // Basic CRUD operations
     @GetMapping("/list")
     @PreAuthorize("hasAuthority('VIEW_CUSTOMER')")
     public ResponseEntity<Page<UserResponseDTO>> getAllUsers(
@@ -50,39 +48,78 @@ public class UserController {
     }
 
     /**
-     * Create new user with optional avatar
-     * Accepts multipart form data with JSON string for user data
+     * Create new user
      */
-    @PostMapping(value = "/create", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    @PostMapping("/create")
     @PreAuthorize("hasAuthority('CREATE_CUSTOMER')")
-    public ResponseEntity<UserResponseDTO> createUser(
-            @RequestParam("user") String userCreateDTOString,
-            @RequestParam(value = "avatar", required = false) MultipartFile avatarFile) {
+    public ResponseEntity<UserResponseDTO> createUser(@Valid @RequestBody UserCreateDTO createDTO) {
         try {
-            UserCreateDTO createDTO = objectMapper.readValue(userCreateDTOString, UserCreateDTO.class);
-            UserResponseDTO createdUser = userService.createUser(createDTO, avatarFile);
+            UserResponseDTO createdUser = userService.createUser(createDTO);
             return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Lỗi khi xử lý dữ liệu người dùng: " + e.getMessage());
+            throw new IllegalArgumentException("Lỗi khi tạo người dùng: " + e.getMessage());
         }
     }
 
     /**
-     * Update user with optional avatar
-     * Accepts multipart form data with JSON string for user data
+     * Update user information
      */
-    @PutMapping(value = "/edit/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    @PutMapping("/edit/{id}")
     @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
     public ResponseEntity<UserResponseDTO> updateUser(
             @PathVariable Long id,
-            @RequestParam("user") String userUpdateDTOString,
-            @RequestParam(value = "avatar", required = false) MultipartFile avatarFile) {
+            @Valid @RequestBody UserUpdateDTO updateDTO) {
         try {
-            UserUpdateDTO updateDTO = objectMapper.readValue(userUpdateDTOString, UserUpdateDTO.class);
-            UserResponseDTO updatedUser = userService.updateUser(id, updateDTO, avatarFile);
+            UserResponseDTO updatedUser = userService.updateUser(id, updateDTO);
             return ResponseEntity.ok(updatedUser);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Lỗi khi xử lý dữ liệu cập nhật: " + e.getMessage());
+            throw new IllegalArgumentException("Lỗi khi cập nhật người dùng: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Upload new avatar
+     */
+    @PostMapping(value = "/avatar/{userId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
+    public ResponseEntity<UserResponseDTO> uploadAvatar(
+            @PathVariable Long userId,
+            @RequestParam("avatar") MultipartFile avatarFile) {
+        try {
+            UserResponseDTO response = userService.uploadAvatar(userId, avatarFile);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Lỗi khi tải lên ảnh đại diện: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update existing avatar
+     */
+    @PutMapping(value = "/avatar/{userId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
+    public ResponseEntity<UserResponseDTO> updateAvatar(
+            @PathVariable Long userId,
+            @RequestParam("avatar") MultipartFile avatarFile) {
+        try {
+            UserResponseDTO response = userService.updateAvatar(userId, avatarFile);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Lỗi khi cập nhật ảnh đại diện: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Delete avatar
+     */
+    @DeleteMapping("/avatar/{userId}")
+    @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
+    public ResponseEntity<UserResponseDTO> deleteAvatar(@PathVariable Long userId) {
+        try {
+            UserResponseDTO response = userService.deleteAvatar(userId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Lỗi khi xóa ảnh đại diện: " + e.getMessage());
         }
     }
 
@@ -104,7 +141,7 @@ public class UserController {
                 : ResponseEntity.badRequest().body(response);
     }
 
-
+    // Các endpoints khác giữ nguyên
     @GetMapping("/username/{username}")
     @PreAuthorize("hasAuthority('VIEW_CUSTOMER')")
     public ResponseEntity<UserResponseDTO> getUserByUsername(@PathVariable String username) {
