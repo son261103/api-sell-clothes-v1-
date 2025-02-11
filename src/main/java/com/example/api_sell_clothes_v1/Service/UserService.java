@@ -88,7 +88,7 @@ public class UserService {
         // Create user entity
         Users user = userMapper.toEntity(createDTO);
         user.setPasswordHash(passwordEncoder.encode(createDTO.getPassword()));
-        user.setStatus(UserStatus.ACTIVE);
+        user.setStatus(UserStatus.PENDING);
 
         // Set timestamps
         LocalDateTime now = LocalDateTime.now();
