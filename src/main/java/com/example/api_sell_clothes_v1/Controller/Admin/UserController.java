@@ -22,6 +22,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.Set;
+
 @RestController
 @RequestMapping(ApiPatternConstants.API_USERS)
 @RequiredArgsConstructor
@@ -184,5 +186,70 @@ public class UserController {
         boolean exists = userService.existsByEmail(email);
         String message = exists ? "Email already exists" : "Email available";
         return ResponseEntity.ok(new ApiResponse(!exists, message));
+    }
+
+    /// /////////////////////////// /////////////////////////// /////////////////////////// /////////////////////////// ///////////////////////////
+    /**
+     * Add a role to user
+     */
+    @PostMapping("/{userId}/roles/{roleId}")
+    @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
+    public ResponseEntity<UserResponseDTO> addRoleToUser(
+            @PathVariable Long userId,
+            @PathVariable Long roleId) {
+        try {
+            UserResponseDTO updatedUser = userService.addRoleToUser(userId, roleId);
+            return ResponseEntity.ok(updatedUser);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error adding role to user: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Remove a role from user
+     */
+    @DeleteMapping("/{userId}/roles/{roleId}")
+    @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
+    public ResponseEntity<UserResponseDTO> removeRoleFromUser(
+            @PathVariable Long userId,
+            @PathVariable Long roleId) {
+        try {
+            UserResponseDTO updatedUser = userService.removeRoleFromUser(userId, roleId);
+            return ResponseEntity.ok(updatedUser);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error removing role from user: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update all roles for a user
+     */
+    @PutMapping("/{userId}/roles")
+    @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
+    public ResponseEntity<UserResponseDTO> updateUserRoles(
+            @PathVariable Long userId,
+            @RequestBody Set<Long> roleIds) {
+        try {
+            UserResponseDTO updatedUser = userService.updateUserRoles(userId, roleIds);
+            return ResponseEntity.ok(updatedUser);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error updating user roles: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Remove multiple roles from user
+     */
+    @DeleteMapping("/{userId}/roles/bulk")
+    @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
+    public ResponseEntity<UserResponseDTO> removeMultipleRolesFromUser(
+            @PathVariable Long userId,
+            @RequestBody Set<Long> roleIds) {
+        try {
+            UserResponseDTO updatedUser = userService.removeMultipleRolesFromUser(userId, roleIds);
+            return ResponseEntity.ok(updatedUser);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error removing roles from user: " + e.getMessage());
+        }
     }
 }

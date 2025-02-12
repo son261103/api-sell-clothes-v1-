@@ -367,6 +367,94 @@ public class UserService {
 //            throw new IllegalArgumentException("Account has been locked or banned");
 //        }
 //    }
+//
+    /////////////////////////// /////////////////////////// /////////////////////////// /////////////////////////// ///////////////////////////
+// Add these methods to UserService class
+
+    /**
+     * Add a role to user
+     */
+    @Transactional
+    public UserResponseDTO addRoleToUser(Long userId, Long roleId) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+        Roles role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new EntityNotFoundException("Role not found"));
+
+        user.getRoles().add(role);
+        Users updatedUser = userRepository.save(user);
+        log.info("Added role {} to user {}", role.getName(), userId);
+
+        return userMapper.toDto(updatedUser);
+    }
+
+    /**
+     * Remove a role from user
+     */
+    @Transactional
+    public UserResponseDTO removeRoleFromUser(Long userId, Long roleId) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+        Roles role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new EntityNotFoundException("Role not found"));
+
+        if (!user.getRoles().contains(role)) {
+            throw new IllegalArgumentException("User does not have this role");
+        }
+
+        user.getRoles().remove(role);
+        Users updatedUser = userRepository.save(user);
+        log.info("Removed role {} from user {}", role.getName(), userId);
+
+        return userMapper.toDto(updatedUser);
+    }
+
+    /**
+     * Update all roles for a user
+     */
+    @Transactional
+    public UserResponseDTO updateUserRoles(Long userId, Set<Long> roleIds) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        Set<Roles> newRoles = new HashSet<>();
+        for (Long roleId : roleIds) {
+            Roles role = roleRepository.findById(roleId)
+                    .orElseThrow(() -> new EntityNotFoundException("Role not found with id: " + roleId));
+            newRoles.add(role);
+        }
+
+        user.setRoles(newRoles);
+        Users updatedUser = userRepository.save(user);
+        log.info("Updated roles for user {}", userId);
+
+        return userMapper.toDto(updatedUser);
+    }
+
+    /**
+     * Remove multiple roles from user
+     */
+    @Transactional
+    public UserResponseDTO removeMultipleRolesFromUser(Long userId, Set<Long> roleIds) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        Set<Roles> rolesToRemove = new HashSet<>();
+        for (Long roleId : roleIds) {
+            Roles role = roleRepository.findById(roleId)
+                    .orElseThrow(() -> new EntityNotFoundException("Role not found with id: " + roleId));
+            rolesToRemove.add(role);
+        }
+
+        user.getRoles().removeAll(rolesToRemove);
+        Users updatedUser = userRepository.save(user);
+        log.info("Removed {} roles from user {}", roleIds.size(), userId);
+
+        return userMapper.toDto(updatedUser);
+    }
+
+
+    /// /////////////////////////// /////////////////////////// /////////////////////////// /////////////////////////// ///////////////////////////
 
     private void validateUniqueFieldsForUpdate(UserUpdateDTO updateDTO, Users existingUser) {
         if (updateDTO.getUsername() != null &&
