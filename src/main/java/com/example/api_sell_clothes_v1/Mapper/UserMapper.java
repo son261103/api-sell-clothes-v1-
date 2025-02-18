@@ -33,6 +33,9 @@ public class UserMapper implements EntityMapper<Users, UserResponseDTO> {
                 .phone(dto.getPhone())
                 .avatar(dto.getAvatar())
                 .status(dto.getStatus())
+                .address(dto.getAddress())
+                .dateOfBirth(dto.getDateOfBirth())
+                .gender(dto.getGender())
                 .build();
     }
 
@@ -50,6 +53,9 @@ public class UserMapper implements EntityMapper<Users, UserResponseDTO> {
         userResponseDTO.setPhone(entity.getPhone());
         userResponseDTO.setAvatar(entity.getAvatar());
         userResponseDTO.setStatus(entity.getStatus());
+        userResponseDTO.setAddress(entity.getAddress());
+        userResponseDTO.setDateOfBirth(entity.getDateOfBirth());
+        userResponseDTO.setGender(entity.getGender());
         userResponseDTO.setLastLoginAt(entity.getLastLoginAt() != null ?
                 entity.getLastLoginAt().toString() : null);
 

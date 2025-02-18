@@ -13,6 +13,7 @@ import com.example.api_sell_clothes_v1.Repository.RoleRepository;
 import com.example.api_sell_clothes_v1.Repository.UserRepository;
 import com.example.api_sell_clothes_v1.Security.CustomUserDetails;
 import com.example.api_sell_clothes_v1.Security.JwtService;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -485,5 +486,123 @@ public class AuthenticationService {
             log.error("Logout failed: {}", e.getMessage());
             throw new RuntimeException("Logout failed: " + e.getMessage());
         }
+    }
+
+// ------------------------------------------------------------------------
+    /**
+     * Change password without OTP
+     */
+    @Transactional
+    public ApiResponse changePassword(Long userId, ChangePasswordDTO changePasswordDTO) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        // Validate old password
+        if (!passwordEncoder.matches(changePasswordDTO.getOldPassword(), user.getPasswordHash())) {
+            throw new BadCredentialsException("Invalid old password");
+        }
+
+        // Validate new password and confirm password match
+        if (!changePasswordDTO.getNewPassword().equals(changePasswordDTO.getConfirmPassword())) {
+            throw new IllegalArgumentException("New password and confirm password do not match");
+        }
+
+        // Update password
+        user.setPasswordHash(passwordEncoder.encode(changePasswordDTO.getNewPassword()));
+        userRepository.save(user);
+
+        log.info("Password changed successfully for user ID: {}", userId);
+        return new ApiResponse(true, "Password changed successfully");
+    }
+
+    /**
+     * Change password with OTP verification
+     */
+    @Transactional
+    public ApiResponse changePasswordWithOtp(Long userId, ChangePasswordWithOtpDTO changePasswordDTO) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        // Validate old password
+        if (!passwordEncoder.matches(changePasswordDTO.getOldPassword(), user.getPasswordHash())) {
+            throw new BadCredentialsException("Invalid old password");
+        }
+
+        // Validate OTP
+        String cachedOtp = otpService.getOtpFromCache(changePasswordDTO.getLoginId());
+        if (cachedOtp == null || !cachedOtp.equals(changePasswordDTO.getOtp())) {
+            throw new IllegalArgumentException("Invalid or expired OTP");
+        }
+
+        // Validate new password and confirm password match
+        if (!changePasswordDTO.getNewPassword().equals(changePasswordDTO.getConfirmPassword())) {
+            throw new IllegalArgumentException("New password and confirm password do not match");
+        }
+
+        // Update password
+        user.setPasswordHash(passwordEncoder.encode(changePasswordDTO.getNewPassword()));
+        userRepository.save(user);
+
+        // Remove OTP from cache
+        otpService.removeOtpFromCache(changePasswordDTO.getLoginId());
+
+        log.info("Password changed successfully with OTP for user ID: {}", userId);
+        return new ApiResponse(true, "Password changed successfully");
+    }
+
+    /**
+     * Get user profile
+     */
+    public UserProfileDTO getUserProfile(Long userId) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        Set<String> roles = user.getRoles().stream()
+                .map(Roles::getName)
+                .collect(Collectors.toSet());
+
+        Set<String> permissions = user.getRoles().stream()
+                .flatMap(role -> role.getPermissions().stream())
+                .map(Permissions::getCodeName)
+                .collect(Collectors.toSet());
+
+        return UserProfileDTO.builder()
+                .userId(user.getUserId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .phone(user.getPhone())
+                .avatar(user.getAvatar())
+                .status(user.getStatus())
+                .createdAt(user.getCreatedAt())
+                .lastLoginAt(user.getLastLoginAt())
+                .roles(roles)
+                .permissions(permissions)
+                .address(user.getAddress())
+                .dateOfBirth(user.getDateOfBirth())
+                .gender(user.getGender())
+                .build();
+    }
+
+    /**
+     * Update user profile
+     */
+    @Transactional
+    public UserProfileDTO updateUserProfile(Long userId, UserProfileDTO profileDTO) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        // Update user fields
+        user.setFullName(profileDTO.getFullName());
+        user.setPhone(profileDTO.getPhone());
+        user.setAddress(profileDTO.getAddress());
+        user.setDateOfBirth(profileDTO.getDateOfBirth());
+        user.setGender(profileDTO.getGender());
+
+        // Save updated user
+        Users updatedUser = userRepository.save(user);
+        log.info("Profile updated for user ID: {}", userId);
+
+        return getUserProfile(updatedUser.getUserId());
     }
 }

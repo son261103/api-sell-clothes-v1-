@@ -3,10 +3,8 @@ package com.example.api_sell_clothes_v1.Controller.Admin;
 import com.example.api_sell_clothes_v1.DTO.ApiResponse;
 import com.example.api_sell_clothes_v1.DTO.Auth.*;
 import com.example.api_sell_clothes_v1.Exceptions.UserStatusException;
-import com.example.api_sell_clothes_v1.Service.AuthenticationService;
-import com.example.api_sell_clothes_v1.Service.EmailService;
-import com.example.api_sell_clothes_v1.Service.OtpService;
-import com.example.api_sell_clothes_v1.Service.RefreshTokenService;
+import com.example.api_sell_clothes_v1.Security.CustomUserDetails;
+import com.example.api_sell_clothes_v1.Service.*;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -26,7 +25,7 @@ public class AuthController {
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
     private final AuthenticationService authService;
     private final OtpService otpService;
-    private final RefreshTokenService refreshTokenService ;
+    private final RefreshTokenService refreshTokenService;
 
     // Endpoint gửi OTP vào email người dùng
     @PostMapping("/send-otp")
@@ -103,7 +102,6 @@ public class AuthController {
                     .body(new ApiResponse(false, "Đã xảy ra lỗi trong quá trình đăng nhập"));
         }
     }
-
 
 
     // Endpoint đăng ký người dùng
@@ -276,4 +274,83 @@ public class AuthController {
         return null;
     }
 
+
+//    -------------------------------------------------------------------------------
+
+    /**
+     * Change password without OTP
+     */
+    @PutMapping("/change-password")
+    public ResponseEntity<ApiResponse> changePassword(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody ChangePasswordDTO changePasswordDTO) {
+        try {
+            // Thêm null check
+            if (userDetails == null || userDetails.getUser() == null) {
+                return ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body(new ApiResponse(false, "User not authenticated"));
+            }
+
+            ApiResponse response = authService.changePassword(
+                    userDetails.getUser().getUserId(),
+                    changePasswordDTO
+            );
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity
+                    .badRequest()
+                    .body(new ApiResponse(false, "Error changing password: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Change password with OTP verification
+     */
+    @PutMapping("/change-password-otp")
+    public ResponseEntity<ApiResponse> changePasswordWithOtp(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody ChangePasswordWithOtpDTO changePasswordDTO) {
+        try {
+            ApiResponse response = authService.changePasswordWithOtp(
+                    userDetails.getUser().getUserId(),
+                    changePasswordDTO
+            );
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error changing password: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get user profile
+     */
+    @GetMapping("/profile")
+    public ResponseEntity<UserProfileDTO> getUserProfile(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        try {
+            UserProfileDTO profile = authService.getUserProfile(userDetails.getUser().getUserId());
+            return ResponseEntity.ok(profile);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error fetching user profile: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update user profile
+     */
+    @PutMapping("/profile")
+    public ResponseEntity<UserProfileDTO> updateUserProfile(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody UserProfileDTO profileDTO) {
+        try {
+            UserProfileDTO updatedProfile = authService.updateUserProfile(
+                    userDetails.getUser().getUserId(),
+                    profileDTO
+            );
+            return ResponseEntity.ok(updatedProfile);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error updating user profile: " + e.getMessage());
+        }
+    }
 }
