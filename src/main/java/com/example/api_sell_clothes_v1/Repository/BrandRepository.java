@@ -1,6 +1,8 @@
 package com.example.api_sell_clothes_v1.Repository;
 
 import com.example.api_sell_clothes_v1.Entity.Brands;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -53,4 +55,9 @@ public interface BrandRepository extends JpaRepository<Brands, Long> {
     boolean existsByBrandIdAndStatus(Long brandId, boolean status);
 
 
+    Page<Brands> findByStatusAndNameContainingIgnoreCase(Boolean status, String name, Pageable pageable);
+
+    Page<Brands> findByNameContainingIgnoreCase(String name, Pageable pageable);
+
+    Page<Brands> findByStatus(Boolean status, Pageable pageable);
 }
