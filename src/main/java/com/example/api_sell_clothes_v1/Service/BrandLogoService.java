@@ -1,9 +1,13 @@
 package com.example.api_sell_clothes_v1.Service;
 
 import com.example.api_sell_clothes_v1.Exceptions.FileHandlingException;
+import com.example.api_sell_clothes_v1.Entity.Brands;
+import com.example.api_sell_clothes_v1.Repository.BrandRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
@@ -11,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class BrandLogoService {
     private final CloudinaryService cloudinaryService;
+    private final BrandRepository brandRepository;
 
     private static final String BRAND_FOLDER = "brands/logos";
     private static final String LOGO_PREFIX = "logo_";
@@ -92,6 +97,67 @@ public class BrandLogoService {
     }
 
     /**
+     * Update brand logo with brandId
+     * @param newLogoFile The new logo file
+     * @param oldLogoUrl URL of the existing logo
+     * @param brandId ID of the brand to update
+     * @return URL of the updated logo
+     * @throws FileHandlingException if update fails or file validation fails
+     */
+    @Transactional
+    public String updateLogoWithBrandId(MultipartFile newLogoFile, String oldLogoUrl, Long brandId) {
+        // First update the logo on Cloudinary
+        String newLogoUrl = updateLogo(newLogoFile, oldLogoUrl);
+
+        // Then update the brand in the database
+        if (brandId != null && newLogoUrl != null) {
+            try {
+                Brands brand = brandRepository.findById(brandId)
+                        .orElseThrow(() -> new EntityNotFoundException("Brand not found with id: " + brandId));
+
+                brand.setLogoUrl(newLogoUrl);
+                brandRepository.save(brand);
+                log.info("Updated brand ID: {} with new logo URL: {}", brandId, newLogoUrl);
+            } catch (Exception e) {
+                log.error("Failed to update brand with new logo URL: ", e);
+                throw new FileHandlingException("Logo đã được tải lên nhưng không thể cập nhật thông tin thương hiệu: " + e.getMessage());
+            }
+        }
+
+        return newLogoUrl;
+    }
+
+    /**
+     * Upload logo and update brand
+     * @param logoFile The logo file to upload
+     * @param brandId ID of the brand to update
+     * @return URL of the uploaded logo
+     * @throws FileHandlingException if update fails or file validation fails
+     */
+    @Transactional
+    public String uploadLogoWithBrandId(MultipartFile logoFile, Long brandId) {
+        // First upload the logo to Cloudinary
+        String logoUrl = uploadLogo(logoFile);
+
+        // Then update the brand in the database
+        if (brandId != null && logoUrl != null) {
+            try {
+                Brands brand = brandRepository.findById(brandId)
+                        .orElseThrow(() -> new EntityNotFoundException("Brand not found with id: " + brandId));
+
+                brand.setLogoUrl(logoUrl);
+                brandRepository.save(brand);
+                log.info("Updated brand ID: {} with new logo URL: {}", brandId, logoUrl);
+            } catch (Exception e) {
+                log.error("Failed to update brand with new logo URL: ", e);
+                throw new FileHandlingException("Logo đã được tải lên nhưng không thể cập nhật thông tin thương hiệu: " + e.getMessage());
+            }
+        }
+
+        return logoUrl;
+    }
+
+    /**
      * Delete brand logo
      * @param logoUrl URL of the logo to delete
      * @throws FileHandlingException if deletion fails
@@ -108,6 +174,33 @@ public class BrandLogoService {
         } catch (Exception e) {
             log.error("Failed to delete brand logo {}: ", logoUrl, e);
             throw new FileHandlingException("Không thể xóa logo thương hiệu: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Delete brand logo and update brand
+     * @param logoUrl URL of the logo to delete
+     * @param brandId ID of the brand to update
+     * @throws FileHandlingException if deletion fails
+     */
+    @Transactional
+    public void deleteLogoWithBrandId(String logoUrl, Long brandId) {
+        // First delete the logo from Cloudinary
+        deleteLogo(logoUrl);
+
+        // Then update the brand in the database
+        if (brandId != null) {
+            try {
+                Brands brand = brandRepository.findById(brandId)
+                        .orElseThrow(() -> new EntityNotFoundException("Brand not found with id: " + brandId));
+
+                brand.setLogoUrl(null);
+                brandRepository.save(brand);
+                log.info("Removed logo URL from brand ID: {}", brandId);
+            } catch (Exception e) {
+                log.error("Failed to update brand after logo deletion: ", e);
+                throw new FileHandlingException("Logo đã được xóa nhưng không thể cập nhật thông tin thương hiệu: " + e.getMessage());
+            }
         }
     }
 

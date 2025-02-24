@@ -1,4 +1,3 @@
-// BrandService.java
 package com.example.api_sell_clothes_v1.Service;
 
 import com.example.api_sell_clothes_v1.DTO.ApiResponse;
@@ -108,14 +107,22 @@ public class BrandService {
         Brands brand = brandMapper.toEntity(createDTO);
         brand.setStatus(true);
 
+        // Save brand first to get an ID
+        Brands savedBrand = brandRepository.save(brand);
+
+        // Then handle logo if provided
         if (logoFile != null && !logoFile.isEmpty()) {
-            String logoUrl = brandLogoService.uploadLogo(logoFile);
-            brand.setLogoUrl(logoUrl);
+            try {
+                String logoUrl = brandLogoService.uploadLogoWithBrandId(logoFile, savedBrand.getBrandId());
+                savedBrand.setLogoUrl(logoUrl);
+                savedBrand = brandRepository.save(savedBrand);
+            } catch (Exception e) {
+                log.error("Failed to handle logo for new brand: ", e);
+                // Continue with brand creation even if logo upload fails
+            }
         }
 
-        Brands savedBrand = brandRepository.save(brand);
         log.info("Created new brand with ID: {}", savedBrand.getBrandId());
-
         return brandMapper.toDto(savedBrand);
     }
 
@@ -130,16 +137,39 @@ public class BrandService {
             validateUniqueBrandName(updateDTO.getName());
         }
 
+        // Update fields first
+        updateBrandFields(existingBrand, updateDTO);
+        Brands updatedBrand = brandRepository.save(existingBrand);
+
+        // Then handle logo separately if provided
         if (logoFile != null && !logoFile.isEmpty()) {
-            String newLogoUrl = brandLogoService.updateLogo(logoFile, existingBrand.getLogoUrl());
-            existingBrand.setLogoUrl(newLogoUrl);
+            try {
+                String newLogoUrl = brandLogoService.updateLogoWithBrandId(
+                        logoFile,
+                        updatedBrand.getLogoUrl(),
+                        updatedBrand.getBrandId()
+                );
+                updatedBrand.setLogoUrl(newLogoUrl);
+                updatedBrand = brandRepository.save(updatedBrand);
+            } catch (Exception e) {
+                log.error("Failed to handle logo update: ", e);
+                // Continue with brand update even if logo update fails
+            }
         }
 
-        updateBrandFields(existingBrand, updateDTO);
+        log.info("Updated brand with ID: {}", updatedBrand.getBrandId());
+        return brandMapper.toDto(updatedBrand);
+    }
 
-        Brands savedBrand = brandRepository.save(existingBrand);
-        log.info("Updated brand with ID: {}", savedBrand.getBrandId());
-
+    /**
+     * Update brand logo
+     */
+    @Transactional
+    public BrandResponseDTO updateBrandLogo(Long brandId, String logoUrl) {
+        Brands brand = findBrandById(brandId);
+        brand.setLogoUrl(logoUrl);
+        Brands savedBrand = brandRepository.save(brand);
+        log.info("Updated logo for brand ID: {} with URL: {}", brandId, logoUrl);
         return brandMapper.toDto(savedBrand);
     }
 
@@ -155,7 +185,7 @@ public class BrandService {
 
         if (brand.getLogoUrl() != null && !brand.getLogoUrl().isEmpty()) {
             try {
-                brandLogoService.deleteLogo(brand.getLogoUrl());
+                brandLogoService.deleteLogoWithBrandId(brand.getLogoUrl(), brand.getBrandId());
             } catch (Exception e) {
                 logoDeletedSuccessfully = false;
                 logoDeleteError = e.getMessage();
@@ -236,9 +266,7 @@ public class BrandService {
         if (updateDTO.getStatus() != null) {
             brand.setStatus(updateDTO.getStatus());
         }
-        if (updateDTO.getLogoUrl() != null) {
-            brand.setLogoUrl(updateDTO.getLogoUrl());
-        }
+        // We handle logoUrl separately through the logo upload process
     }
 
     private void validateStatusValue(Integer status) {

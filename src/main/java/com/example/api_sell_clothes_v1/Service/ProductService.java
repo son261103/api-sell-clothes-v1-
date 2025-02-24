@@ -35,6 +35,46 @@ public class ProductService {
     private final ProductMapper productMapper;
     private final ProductThumbnailService thumbnailService;
 
+    @Transactional(readOnly = true)
+    public Page<ProductResponseDTO> getAllProducts(
+            Pageable pageable,
+            String search,
+            Long categoryId,
+            Long brandId,
+            Boolean status,
+            BigDecimal minPrice,
+            BigDecimal maxPrice) {
+
+        Page<Products> productsPage;
+
+        if (search != null && !search.trim().isEmpty()) {
+            // If search keyword is provided, use the search functionality
+            productsPage = productRepository.searchProducts(
+                    search.trim(),
+                    minPrice,
+                    maxPrice,
+                    categoryId,
+                    brandId,
+                    status,
+                    pageable
+            );
+        } else if (categoryId != null || brandId != null || status != null) {
+            // If any filter is provided but no search keyword
+            productsPage = productRepository.findByFilters(
+                    categoryId,
+                    brandId,
+                    status,
+                    pageable
+            );
+        } else {
+            // If no filters are provided, return all products
+            productsPage = productRepository.findAll(pageable);
+        }
+
+        // Map to DTO and return
+        return productsPage.map(productMapper::toDto);
+    }
+
     /**
      * Get product hierarchy information including statistics
      */

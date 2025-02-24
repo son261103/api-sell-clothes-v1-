@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -24,6 +26,28 @@ import java.util.List;
 public class ProductController {
     private final ProductService productService;
     private final ObjectMapper objectMapper;
+
+    @GetMapping("/list")
+    @PreAuthorize("hasAuthority('VIEW_PRODUCT')")
+    public ResponseEntity<Page<ProductResponseDTO>> getAllProducts(
+            @PageableDefault(page = 0, size = 10, sort = "productId") Pageable pageable,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long brandId,
+            @RequestParam(required = false) Boolean status,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice) {
+
+        return ResponseEntity.ok(productService.getAllProducts(
+                pageable,
+                search,
+                categoryId,
+                brandId,
+                status,
+                minPrice,
+                maxPrice
+        ));
+    }
 
     @GetMapping("/hierarchy")
     @PreAuthorize("hasAuthority('VIEW_PRODUCT')")
