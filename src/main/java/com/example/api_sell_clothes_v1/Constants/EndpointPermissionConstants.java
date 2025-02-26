@@ -244,17 +244,89 @@ public class EndpointPermissionConstants {
 
     // Order endpoint permissions
     public static final Map<String, String> ORDER_ENDPOINTS = new HashMap<>() {{
-        put(ApiPatternConstants.API_ORDERS + ApiPatternConstants.PATTERN_CREATE,
-                PermissionType.CREATE_ORDER.getCodeName());
-        put(ApiPatternConstants.API_ORDERS + ApiPatternConstants.PATTERN_EDIT,
-                PermissionType.EDIT_ORDER.getCodeName());
-        put(ApiPatternConstants.API_ORDERS + ApiPatternConstants.PATTERN_DELETE,
-                PermissionType.DELETE_ORDER.getCodeName());
-        put(ApiPatternConstants.API_ORDERS + ApiPatternConstants.PATTERN_VIEW,
+        // User order endpoints
+        put(ApiPatternConstants.API_ORDERS + "/create",
+                PermissionType.CHECKOUT_CART.getCodeName());
+        put(ApiPatternConstants.API_ORDERS + "/{orderId}",
                 PermissionType.VIEW_ORDER.getCodeName());
-        put(ApiPatternConstants.API_ORDERS + ApiPatternConstants.PATTERN_LIST,
+        put(ApiPatternConstants.API_ORDERS,
                 PermissionType.VIEW_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDERS + "/status/{status}",
+                PermissionType.VIEW_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDERS + "/{orderId}/cancel",
+                PermissionType.CANCEL_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDERS + "/bestselling",
+                PermissionType.VIEW_ORDER.getCodeName());
+
+        // Admin order endpoints
+        put(ApiPatternConstants.API_ORDERS + "/admin/{orderId}",
+                PermissionType.MANAGE_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDERS + "/admin/list",
+                PermissionType.MANAGE_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDERS + "/admin/status/{status}",
+                PermissionType.MANAGE_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDERS + "/admin/search",
+                PermissionType.MANAGE_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDERS + "/admin/filter",
+                PermissionType.MANAGE_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDERS + "/admin/{orderId}/status",
+                PermissionType.MANAGE_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDERS + "/admin/statistics",
+                PermissionType.MANAGE_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDERS + "/admin/{orderId}",
+                PermissionType.MANAGE_ORDER.getCodeName());
     }};
+
+
+    // OrderItem endpoint permissions
+    public static final Map<String, String> ORDER_ITEM_ENDPOINTS = new HashMap<>() {{
+        // User orderitem endpoints
+        put(ApiPatternConstants.API_ORDER_ITEMS + "/order/{orderId}",
+                PermissionType.VIEW_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDER_ITEMS + "/{orderItemId}",
+                PermissionType.VIEW_ORDER.getCodeName());
+
+        // Admin orderitem endpoints
+        put(ApiPatternConstants.API_ORDER_ITEMS + "/admin/order/{orderId}",
+                PermissionType.MANAGE_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDER_ITEMS + "/admin/bestselling-variants",
+                PermissionType.MANAGE_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDER_ITEMS + "/admin/bestselling-products",
+                PermissionType.MANAGE_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDER_ITEMS + "/admin/product-sales/{productId}",
+                PermissionType.MANAGE_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDER_ITEMS + "/admin/restore-inventory/{orderId}",
+                PermissionType.MANAGE_ORDER.getCodeName());
+        put(ApiPatternConstants.API_ORDER_ITEMS + "/admin/order/{orderId}",
+                PermissionType.MANAGE_ORDER.getCodeName());
+    }};
+
+    public static final Map<String, String> USER_ADDRESS_ENDPOINTS = new HashMap<>() {{
+        // User address endpoints
+        put(ApiPatternConstants.API_USER_ADDRESSES,
+                PermissionType.VIEW_ADDRESS.getCodeName()); // GET: List all addresses
+        put(ApiPatternConstants.API_USER_ADDRESSES + "/{addressId}",
+                PermissionType.VIEW_ADDRESS.getCodeName()); // GET: View specific address
+        put(ApiPatternConstants.API_USER_ADDRESSES,
+                PermissionType.CREATE_ADDRESS.getCodeName()); // POST: Create new address
+        put(ApiPatternConstants.API_USER_ADDRESSES + "/{addressId}",
+                PermissionType.EDIT_ADDRESS.getCodeName()); // PUT: Update address
+        put(ApiPatternConstants.API_USER_ADDRESSES + "/{addressId}",
+                PermissionType.DELETE_ADDRESS.getCodeName()); // DELETE: Remove address
+        put(ApiPatternConstants.API_USER_ADDRESSES + "/{addressId}/default",
+                PermissionType.SET_DEFAULT_ADDRESS.getCodeName()); // Set as default
+        put(ApiPatternConstants.API_USER_ADDRESSES + "/default",
+                PermissionType.VIEW_ADDRESS.getCodeName()); // GET: View default address
+        put(ApiPatternConstants.API_USER_ADDRESSES + "/count",
+                PermissionType.VIEW_ADDRESS.getCodeName()); // GET: Count addresses
+        put(ApiPatternConstants.API_USER_ADDRESSES + "/check/{addressId}",
+                PermissionType.VIEW_ADDRESS.getCodeName()); // GET: Check address
+        put(ApiPatternConstants.API_USER_ADDRESSES + "/check/{addressId}/owner",
+                PermissionType.VIEW_ADDRESS.getCodeName()); // GET: Check address ownership
+        put(ApiPatternConstants.API_USER_ADDRESSES + "/validate",
+                PermissionType.VALIDATE_ADDRESS.getCodeName()); // Validate address
+    }};
+
 
     // Review endpoint permissions
     public static final Map<String, String> REVIEW_ENDPOINTS = new HashMap<>() {{
@@ -269,4 +341,127 @@ public class EndpointPermissionConstants {
         put(ApiPatternConstants.API_REVIEWS + ApiPatternConstants.PATTERN_LIST,
                 PermissionType.VIEW_REVIEW.getCodeName());
     }};
+
+    // Cart endpoint permissions
+    public static final Map<String, String> CART_ENDPOINTS = new HashMap<>() {{
+        // User cart endpoints
+        put(ApiPatternConstants.API_CARTS,
+                PermissionType.VIEW_CART.getCodeName());
+        put(ApiPatternConstants.API_CARTS + "/summary",
+                PermissionType.VIEW_CART.getCodeName());
+        put(ApiPatternConstants.API_CARTS + "/clear",
+                PermissionType.EDIT_CART.getCodeName());
+        put(ApiPatternConstants.API_CARTS + "/selected",
+                PermissionType.VIEW_CART.getCodeName());
+        put(ApiPatternConstants.API_CARTS + "/count",
+                PermissionType.VIEW_CART.getCodeName());
+
+        // Session cart endpoints (không cần phân quyền)
+        put(ApiPatternConstants.API_CARTS + "/session/{sessionId}",
+                null);
+        put(ApiPatternConstants.API_CARTS + "/session/{sessionId}/summary",
+                null);
+        put(ApiPatternConstants.API_CARTS + "/session/{sessionId}/clear",
+                null);
+        put(ApiPatternConstants.API_CARTS + "/session/{sessionId}/selected",
+                null);
+        put(ApiPatternConstants.API_CARTS + "/session/{sessionId}/count",
+                null);
+        put(ApiPatternConstants.API_CARTS + "/session/{sessionId}/merge",
+                PermissionType.CHECKOUT_CART.getCodeName());
+    }};
+
+    // Cart Item endpoint permissions
+    public static final Map<String, String> CART_ITEM_ENDPOINTS = new HashMap<>() {{
+        // User cart item endpoints
+        put(ApiPatternConstants.API_CART_ITEMS + "/add",
+                PermissionType.EDIT_CART.getCodeName());
+        put(ApiPatternConstants.API_CART_ITEMS + "/{cartItemId}/quantity",
+                PermissionType.EDIT_CART.getCodeName());
+        put(ApiPatternConstants.API_CART_ITEMS + "/{cartItemId}/select",
+                PermissionType.EDIT_CART.getCodeName());
+        put(ApiPatternConstants.API_CART_ITEMS + "/{cartItemId}",
+                PermissionType.EDIT_CART.getCodeName());
+        put(ApiPatternConstants.API_CART_ITEMS + "/select-all",
+                PermissionType.EDIT_CART.getCodeName());
+        put(ApiPatternConstants.API_CART_ITEMS + "/deselect-all",
+                PermissionType.EDIT_CART.getCodeName());
+        put(ApiPatternConstants.API_CART_ITEMS,
+                PermissionType.VIEW_CART.getCodeName());
+        put(ApiPatternConstants.API_CART_ITEMS + "/check",
+                PermissionType.VIEW_CART.getCodeName());
+        put(ApiPatternConstants.API_CART_ITEMS + "/count-selected",
+                PermissionType.VIEW_CART.getCodeName());
+
+        // Session cart item endpoints (không cần phân quyền)
+        put(ApiPatternConstants.API_CART_ITEMS + "/session/{sessionId}/add",
+                null);
+        put(ApiPatternConstants.API_CART_ITEMS + "/session/{sessionId}",
+                null);
+        put(ApiPatternConstants.API_CART_ITEMS + "/session/{sessionId}/check",
+                null);
+        put(ApiPatternConstants.API_CART_ITEMS + "/session/{sessionId}/count-selected",
+                null);
+        put(ApiPatternConstants.API_CART_ITEMS + "/session/{sessionId}/select-all",
+                null);
+        put(ApiPatternConstants.API_CART_ITEMS + "/session/{sessionId}/deselect-all",
+                null);
+    }};
+
+
+    // Payment Method endpoint permissions
+    public static final Map<String, String> PAYMENT_METHOD_ENDPOINTS = new HashMap<>() {{
+        // User payment method endpoints
+        put(ApiPatternConstants.API_PAYMENT_METHODS,
+                PermissionType.VIEW_PAYMENT_METHOD.getCodeName()); // GET: List all payment methods
+
+        // Admin payment method endpoints
+        put(ApiPatternConstants.API_PAYMENT_METHODS + "/admin/list",
+                PermissionType.MANAGE_PAYMENT_METHOD.getCodeName()); // GET: Paginated list
+        put(ApiPatternConstants.API_PAYMENT_METHODS + "/admin/{methodId}",
+                PermissionType.MANAGE_PAYMENT_METHOD.getCodeName()); // GET: View by ID
+        put(ApiPatternConstants.API_PAYMENT_METHODS + "/admin/create",
+                PermissionType.MANAGE_PAYMENT_METHOD.getCodeName()); // POST: Create
+        put(ApiPatternConstants.API_PAYMENT_METHODS + "/admin/{methodId}",
+                PermissionType.MANAGE_PAYMENT_METHOD.getCodeName()); // PUT: Update
+        put(ApiPatternConstants.API_PAYMENT_METHODS + "/admin/{methodId}",
+                PermissionType.MANAGE_PAYMENT_METHOD.getCodeName()); // DELETE: Delete
+    }};
+
+    // Payment endpoint permissions
+    public static final Map<String, String> PAYMENT_ENDPOINTS = new HashMap<>() {{
+        // User payment endpoints
+        put(ApiPatternConstants.API_PAYMENT + "/create",
+                PermissionType.CREATE_PAYMENT.getCodeName()); // POST: Create payment
+        put(ApiPatternConstants.API_PAYMENT + "/order/{orderId}",
+                PermissionType.VIEW_PAYMENT.getCodeName()); // GET: View payment by order ID
+
+        // Public endpoint (VNPay callback, không cần quyền)
+        put(ApiPatternConstants.API_PAYMENT + "/confirm",
+                null); // GET: Confirm VNPay payment
+
+        // Admin payment endpoints
+        put(ApiPatternConstants.API_PAYMENT + "/admin/order/{orderId}",
+                PermissionType.MANAGE_PAYMENT.getCodeName()); // GET: View payment by order ID
+    }};
+
+    // Payment History endpoint permissions
+    public static final Map<String, String> PAYMENT_HISTORY_ENDPOINTS = new HashMap<>() {{
+        // User payment history endpoints
+        put(ApiPatternConstants.API_PAYMENT_HISTORY + "/payment/{paymentId}",
+                PermissionType.VIEW_PAYMENT_HISTORY.getCodeName()); // GET: History by payment ID
+        put(ApiPatternConstants.API_PAYMENT_HISTORY + "/order/{orderId}",
+                PermissionType.VIEW_PAYMENT_HISTORY.getCodeName()); // GET: History by order ID
+
+        // Admin payment history endpoints
+        put(ApiPatternConstants.API_PAYMENT_HISTORY + "/admin/payment/{paymentId}",
+                PermissionType.MANAGE_PAYMENT_HISTORY.getCodeName()); // GET: History by payment ID
+        put(ApiPatternConstants.API_PAYMENT_HISTORY + "/admin/order/{orderId}",
+                PermissionType.MANAGE_PAYMENT_HISTORY.getCodeName()); // GET: History by order ID
+        put(ApiPatternConstants.API_PAYMENT_HISTORY + "/admin/list",
+                PermissionType.MANAGE_PAYMENT_HISTORY.getCodeName()); // GET: Paginated list
+    }};
+
+
+
 }
