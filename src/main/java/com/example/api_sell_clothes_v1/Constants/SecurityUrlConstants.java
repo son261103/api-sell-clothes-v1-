@@ -7,7 +7,7 @@ public class SecurityUrlConstants {
             "/swagger-ui/**",
             "/v3/api-docs/**",
             "/api/v1/products/public/**",
-
+            "/api/v1/public/**",
             // Cart session URLs (for unauthenticated users)
             "/api/v1/carts/session/**",
             "/api/v1/cart-items/session/**",

@@ -21,7 +21,7 @@ public class ProductVariant {
     @Column(name = "variant_id")
     private Long variantId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "product_id", nullable = false)
     @JsonIgnore
     private Products product;
