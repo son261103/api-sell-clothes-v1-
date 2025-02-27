@@ -345,6 +345,7 @@ public class EndpointPermissionConstants {
     // Cart endpoint permissions
     public static final Map<String, String> CART_ENDPOINTS = new HashMap<>() {{
         // User cart endpoints
+
         put(ApiPatternConstants.API_CARTS,
                 PermissionType.VIEW_CART.getCodeName());
         put(ApiPatternConstants.API_CARTS + "/summary",
