@@ -1,6 +1,6 @@
 package com.example.api_sell_clothes_v1.DTO.Orders;
 
-import com.example.api_sell_clothes_v1.Entity.Order.OrderStatus;
+import com.example.api_sell_clothes_v1.Entity.Order;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,9 +15,11 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class OrderSummaryDTO {
     private Long orderId;
-    private OrderStatus status;
-    private String statusDescription;
     private BigDecimal totalAmount;
-    private Integer totalItems;
+    private BigDecimal shippingFee;
+    private String shippingMethodName;
+    private Order.OrderStatus status;
+    private String statusDescription;
     private LocalDateTime createdAt;
+    private int totalItems;
 }

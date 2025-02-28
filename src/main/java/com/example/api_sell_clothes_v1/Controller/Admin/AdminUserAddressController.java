@@ -20,7 +20,7 @@ import java.util.List;
 @RestController
 @RequestMapping(ApiPatternConstants.API_USER_ADDRESSES)
 @RequiredArgsConstructor
-public class UserAddressController {
+public class AdminUserAddressController {
     private final UserAddressService addressService;
 
     /**

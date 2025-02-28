@@ -34,6 +34,9 @@ public class UserAddress {
     @Column(name = "ward")
     private String ward;
 
+    @Column(name = "phone_number")
+    private String phoneNumber;
+
     @Column(name = "is_default")
     private Boolean isDefault;
 }

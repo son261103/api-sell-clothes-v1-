@@ -24,6 +24,9 @@ public class ApiPatternConstants {
     public static final String API_PAYMENT = "/api/v1/payment";
     public static final String API_PAYMENT_HISTORY = "/api/v1/payment-history";
 
+    // shipping related base paths
+    public static final String API_SHIPPING = "/api/v1/shipping-methods";
+
     // Common action patterns
     public static final String PATTERN_CREATE = "/create";
     public static final String PATTERN_EDIT = "/edit/**";

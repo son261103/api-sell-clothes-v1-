@@ -30,6 +30,7 @@ public class UserAddressMapper implements EntityMapper<UserAddress, AddressRespo
                 .city(dto.getCity())
                 .district(dto.getDistrict())
                 .ward(dto.getWard())
+                .phoneNumber(dto.getPhoneNumber())
                 .isDefault(dto.getIsDefault() != null ? dto.getIsDefault() : false)
                 .build();
     }
@@ -42,6 +43,7 @@ public class UserAddressMapper implements EntityMapper<UserAddress, AddressRespo
         entity.setCity(dto.getCity());
         entity.setDistrict(dto.getDistrict());
         entity.setWard(dto.getWard());
+        entity.setPhoneNumber(dto.getPhoneNumber());
 
         // Only update isDefault if explicitly provided
         if (dto.getIsDefault() != null) {
@@ -65,6 +67,7 @@ public class UserAddressMapper implements EntityMapper<UserAddress, AddressRespo
                 .city(entity.getCity())
                 .district(entity.getDistrict())
                 .ward(entity.getWard())
+                .phoneNumber(entity.getPhoneNumber())
                 .isDefault(entity.getIsDefault())
                 .fullAddress(fullAddress)
                 .build();

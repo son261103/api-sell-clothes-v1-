@@ -463,6 +463,27 @@ public class EndpointPermissionConstants {
                 PermissionType.MANAGE_PAYMENT_HISTORY.getCodeName()); // GET: Paginated list
     }};
 
+    // Shipping endpoint permissions
+    public static final Map<String, String> SHIPPING_ENDPOINTS = new HashMap<>() {{
+        // User shipping endpoints
+        put(ApiPatternConstants.API_SHIPPING + "/methods",
+                PermissionType.VIEW_SHIPPING.getCodeName()); // GET: All shipping methods
+        put(ApiPatternConstants.API_SHIPPING + "/methods/{id}",
+                PermissionType.VIEW_SHIPPING.getCodeName()); // GET: Shipping method by ID
+        put(ApiPatternConstants.API_SHIPPING + "/estimate",
+                PermissionType.VIEW_CART.getCodeName()); // GET: Estimate shipping cost
+
+        // Admin shipping endpoints
+        put(ApiPatternConstants.API_SHIPPING + "/admin/methods",
+                PermissionType.MANAGE_SHIPPING.getCodeName()); // GET & POST: List and create methods
+        put(ApiPatternConstants.API_SHIPPING + "/admin/methods/{id}",
+                PermissionType.MANAGE_SHIPPING.getCodeName()); // GET, PUT, DELETE: Get, update, delete method
+        put(ApiPatternConstants.API_SHIPPING + "/admin/apply",
+                PermissionType.MANAGE_ORDER.getCodeName()); // POST: Apply shipping to order
+        put(ApiPatternConstants.API_SHIPPING + "/admin/calculate",
+                PermissionType.MANAGE_SHIPPING.getCodeName()); // GET: Calculate shipping (admin view)
+    }};
+
 
 
 }

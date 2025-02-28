@@ -31,12 +31,10 @@ public class OrderService {
     private final UserAddressRepository addressRepository;
     private final UserRepository userRepository;
     private final ProductVariantRepository variantRepository;
+    private final ShippingRepository shippingMethodRepository;
     private final OrderMapper orderMapper;
     private final OrderItemService orderItemService;
-
-    // Shipping fee constants
-    private static final BigDecimal DEFAULT_SHIPPING_FEE = new BigDecimal("30000");
-    private static final BigDecimal FREE_SHIPPING_THRESHOLD = new BigDecimal("500000");
+    private final ShippingService shippingService;
 
     /**
      * Create a new order from cart items
@@ -111,15 +109,33 @@ public class OrderService {
             totalAmount = totalAmount.add(orderItem.getTotalPrice());
         }
 
-        // Calculate shipping fee
-        BigDecimal shippingFee = calculateShippingFee(totalAmount);
+        // Calculate shipping fee based on chosen shipping method or default
+        BigDecimal shippingFee;
+        if (createDTO.getShippingMethodId() != null) {
+            // Get shipping method
+            ShippingMethod shippingMethod = shippingMethodRepository.findById(createDTO.getShippingMethodId())
+                    .orElseThrow(() -> new EntityNotFoundException("Shipping method not found"));
+
+            // Calculate shipping fee using shipping service
+            shippingFee = shippingService.calculateShippingFee(
+                    totalAmount,
+                    shippingMethod.getId(),
+                    createDTO.getTotalWeight());
+
+            // Set shipping method in order
+            savedOrder.setShippingMethod(shippingMethod);
+        } else {
+            // Use default shipping fee calculation
+            shippingFee = calculateDefaultShippingFee(totalAmount);
+        }
+
         savedOrder.setShippingFee(shippingFee);
 
         // Set total amount (includes shipping fee)
         savedOrder.setTotalAmount(totalAmount.add(shippingFee));
 
         // Update order
-        savedOrder = orderRepository.save(savedOrder);
+        savedOrder = orderRepository.save(order);
 
         // Remove items from cart
         for (CartItems item : cartItems) {
@@ -238,6 +254,44 @@ public class OrderService {
     }
 
     /**
+     * Update shipping method for an order (admin only)
+     */
+    @Transactional
+    public OrderResponseDTO updateOrderShipping(Long orderId, Long shippingMethodId, Double totalWeight) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
+
+        // Only allow update if order is in PENDING or PROCESSING state
+        if (order.getStatus() != Order.OrderStatus.PENDING && order.getStatus() != Order.OrderStatus.PROCESSING) {
+            throw new InvalidOrderStatusException("Shipping method can only be updated for orders in PENDING or PROCESSING state");
+        }
+
+        // Get shipping method
+        ShippingMethod shippingMethod = shippingMethodRepository.findById(shippingMethodId)
+                .orElseThrow(() -> new EntityNotFoundException("Shipping method not found"));
+
+        // Calculate base order amount (excluding current shipping fee)
+        BigDecimal baseAmount = order.getTotalAmount();
+        if (order.getShippingFee() != null) {
+            baseAmount = baseAmount.subtract(order.getShippingFee());
+        }
+
+        // Calculate new shipping fee
+        BigDecimal newShippingFee = shippingService.calculateShippingFee(baseAmount, shippingMethodId, totalWeight);
+
+        // Update order
+        order.setShippingMethod(shippingMethod);
+        order.setShippingFee(newShippingFee);
+        order.setTotalAmount(baseAmount.add(newShippingFee));
+        order.setUpdatedAt(LocalDateTime.now());
+
+        Order updatedOrder = orderRepository.save(order);
+        log.info("Updated shipping method to {} for order ID: {}", shippingMethodId, orderId);
+
+        return orderMapper.toDto(updatedOrder);
+    }
+
+    /**
      * Get all orders (admin only)
      */
     @Transactional(readOnly = true)
@@ -321,13 +375,28 @@ public class OrderService {
         return orderItemService.getBestsellingProducts(limit);
     }
 
+    /**
+     * Get orders by shipping method (admin only)
+     */
+    @Transactional(readOnly = true)
+    public Page<OrderSummaryDTO> getOrdersByShippingMethod(Long shippingMethodId, Pageable pageable) {
+        ShippingMethod method = shippingMethodRepository.findById(shippingMethodId)
+                .orElseThrow(() -> new EntityNotFoundException("Shipping method not found"));
+
+        Page<Order> orders = orderRepository.findByShippingMethod(method, pageable);
+        return orders.map(orderMapper::toSummaryDto);
+    }
+
     // Helper methods
-    private BigDecimal calculateShippingFee(BigDecimal orderAmount) {
+    // Shipping fee constants - duplicated from ShippingService for backward compatibility
+    private static final BigDecimal FREE_SHIPPING_THRESHOLD = new BigDecimal("500000");
+
+    private BigDecimal calculateDefaultShippingFee(BigDecimal orderAmount) {
         // Free shipping for orders above the threshold
         if (orderAmount.compareTo(FREE_SHIPPING_THRESHOLD) >= 0) {
             return BigDecimal.ZERO;
         }
-        return DEFAULT_SHIPPING_FEE;
+        return new BigDecimal("30000"); // Default fee
     }
 
     private void validateStatusTransition(Order.OrderStatus currentStatus, Order.OrderStatus newStatus) {

@@ -22,6 +22,9 @@ public class PaymentRequestDTO {
     @NotNull(message = "ID đơn hàng không được để trống")
     private Long orderId;
 
+    // Thêm trường userId để kiểm tra quyền sở hữu
+    private Long userId;
+
     // Optional field for VNPay bank code (e.g., "NCB", "VNPAYQR")
     private String bankCode; // No @NotNull since it's optional
 }

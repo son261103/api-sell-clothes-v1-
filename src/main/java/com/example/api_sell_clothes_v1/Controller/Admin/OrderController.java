@@ -3,6 +3,7 @@ package com.example.api_sell_clothes_v1.Controller.Admin;
 import com.example.api_sell_clothes_v1.Constants.ApiPatternConstants;
 import com.example.api_sell_clothes_v1.DTO.ApiResponse;
 import com.example.api_sell_clothes_v1.DTO.Orders.*;
+import com.example.api_sell_clothes_v1.DTO.Shipping.ApplyShippingDTO;
 import com.example.api_sell_clothes_v1.Entity.Order;
 import com.example.api_sell_clothes_v1.Service.OrderService;
 import jakarta.validation.Valid;
@@ -26,89 +27,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OrderController {
     private final OrderService orderService;
-
-    /**
-     * Create a new order from cart items
-     */
-    @PostMapping("/create")
-    @PreAuthorize("hasAuthority('CHECKOUT_CART')")
-    public ResponseEntity<OrderResponseDTO> createOrder(
-            @RequestAttribute("userId") Long userId,
-            @Valid @RequestBody CreateOrderDTO createDTO) {
-        try {
-            OrderResponseDTO createdOrder = orderService.createOrder(userId, createDTO);
-            return new ResponseEntity<>(createdOrder, HttpStatus.CREATED);
-        } catch (Exception e) {
-            log.error("Error creating order: {}", e.getMessage());
-            throw new IllegalArgumentException("Lỗi khi tạo đơn hàng: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Get order by ID for the authenticated user
-     */
-    @GetMapping("/{orderId}")
-    @PreAuthorize("hasAuthority('VIEW_ORDER')")
-    public ResponseEntity<OrderResponseDTO> getUserOrderById(
-            @RequestAttribute("userId") Long userId,
-            @PathVariable Long orderId) {
-        return ResponseEntity.ok(orderService.getUserOrderById(userId, orderId));
-    }
-
-    /**
-     * Get all orders for the authenticated user
-     */
-    @GetMapping
-    @PreAuthorize("hasAuthority('VIEW_ORDER')")
-    public ResponseEntity<Page<OrderSummaryDTO>> getUserOrders(
-            @RequestAttribute("userId") Long userId,
-            @PageableDefault(page = 0, size = 10, sort = "createdAt") Pageable pageable) {
-        return ResponseEntity.ok(orderService.getUserOrders(userId, pageable));
-    }
-
-    /**
-     * Get user orders by status
-     */
-    @GetMapping("/status/{status}")
-    @PreAuthorize("hasAuthority('VIEW_ORDER')")
-    public ResponseEntity<Page<OrderSummaryDTO>> getUserOrdersByStatus(
-            @RequestAttribute("userId") Long userId,
-            @PathVariable Order.OrderStatus status,
-            @PageableDefault(page = 0, size = 10, sort = "createdAt") Pageable pageable) {
-        return ResponseEntity.ok(orderService.getUserOrdersByStatus(userId, status, pageable));
-    }
-
-    /**
-     * Cancel an order
-     */
-    @PostMapping("/{orderId}/cancel")
-    @PreAuthorize("hasAuthority('CANCEL_ORDER')")
-    public ResponseEntity<OrderResponseDTO> cancelOrder(
-            @RequestAttribute("userId") Long userId,
-            @PathVariable Long orderId,
-            @Valid @RequestBody CancelOrderDTO cancelDTO) {
-        try {
-            OrderResponseDTO cancelledOrder = orderService.cancelOrder(userId, orderId, cancelDTO);
-            return ResponseEntity.ok(cancelledOrder);
-        } catch (Exception e) {
-            log.error("Error cancelling order: {}", e.getMessage());
-            throw new IllegalArgumentException("Lỗi khi hủy đơn hàng: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Get bestselling products
-     */
-    @GetMapping("/bestselling")
-    @PreAuthorize("hasAuthority('VIEW_ORDER')")
-    public ResponseEntity<List<BestsellingProductDTO>> getBestsellingProducts(
-            @RequestParam(defaultValue = "10") int limit) {
-        return ResponseEntity.ok(orderService.getBestsellingProducts(limit));
-    }
-
-    /**
-     * ADMIN ENDPOINTS
-     */
 
     /**
      * Get order by ID (admin)
@@ -138,6 +56,17 @@ public class OrderController {
             @PathVariable Order.OrderStatus status,
             @PageableDefault(page = 0, size = 10, sort = "createdAt") Pageable pageable) {
         return ResponseEntity.ok(orderService.getOrdersByStatus(status, pageable));
+    }
+
+    /**
+     * Get orders by shipping method (admin)
+     */
+    @GetMapping("/admin/shipping-method/{methodId}")
+    @PreAuthorize("hasAuthority('MANAGE_ORDER')")
+    public ResponseEntity<Page<OrderSummaryDTO>> getOrdersByShippingMethod(
+            @PathVariable Long methodId,
+            @PageableDefault(page = 0, size = 10, sort = "createdAt") Pageable pageable) {
+        return ResponseEntity.ok(orderService.getOrdersByShippingMethod(methodId, pageable));
     }
 
     /**
@@ -179,6 +108,26 @@ public class OrderController {
         } catch (Exception e) {
             log.error("Error updating order status: {}", e.getMessage());
             throw new IllegalArgumentException("Lỗi khi cập nhật trạng thái đơn hàng: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update shipping method for an order (admin)
+     */
+    @PutMapping("/admin/{orderId}/shipping")
+    @PreAuthorize("hasAuthority('MANAGE_ORDER')")
+    public ResponseEntity<OrderResponseDTO> updateOrderShipping(
+            @PathVariable Long orderId,
+            @Valid @RequestBody ApplyShippingDTO applyDTO) {
+        try {
+            OrderResponseDTO updatedOrder = orderService.updateOrderShipping(
+                    orderId,
+                    applyDTO.getShippingMethodId(),
+                    applyDTO.getTotalWeight());
+            return ResponseEntity.ok(updatedOrder);
+        } catch (Exception e) {
+            log.error("Error updating order shipping: {}", e.getMessage());
+            throw new IllegalArgumentException("Lỗi khi cập nhật phương thức vận chuyển: " + e.getMessage());
         }
     }
 

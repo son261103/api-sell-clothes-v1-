@@ -196,6 +196,16 @@ public class SecurityConfig {
         });
     }
 
+    /**
+     * Configure endpoint permissions for Shipping management
+     */
+    private void configureShippingEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.SHIPPING_ENDPOINTS.forEach((endpoint, permission) -> {
+            if (permission != null) {
+                auth.requestMatchers(endpoint).hasAuthority(permission);
+            }
+        });
+    }
 
 
     /**
@@ -240,7 +250,8 @@ public class SecurityConfig {
                     configurePaymentMethodEndpoints(auth);
                     // Configure Payment endpoints
                     configurePaymentEndpoints(auth);
-
+                    // Configure Shipping endpoints
+                    configureShippingEndpoints(auth);
 
                     // Configure Payment History endpoints
                     configurePaymentHistoryEndpoints(auth);

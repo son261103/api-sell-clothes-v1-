@@ -2,10 +2,9 @@ package com.example.api_sell_clothes_v1.Controller.Admin;
 
 import com.example.api_sell_clothes_v1.Constants.ApiPatternConstants;
 import com.example.api_sell_clothes_v1.DTO.ApiResponse;
-import com.example.api_sell_clothes_v1.DTO.Payment.PaymentRequestDTO;
 import com.example.api_sell_clothes_v1.DTO.Payment.PaymentResponseDTO;
+import com.example.api_sell_clothes_v1.Entity.Payment;
 import com.example.api_sell_clothes_v1.Service.PaymentService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -13,76 +12,155 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping(ApiPatternConstants.API_PAYMENT)
+@RequestMapping(ApiPatternConstants.API_PAYMENT + "/admin")
 @RequiredArgsConstructor
+@PreAuthorize("hasAuthority('MANAGE_PAYMENT')") // Quyền chung cho tất cả endpoint của admin
 public class PaymentController {
+
     private final PaymentService paymentService;
 
     /**
-     * Tạo một giao dịch thanh toán cho đơn hàng (cho người dùng)
+     * Lấy danh sách tất cả các thanh toán
      */
-    @PostMapping("/create")
-    @PreAuthorize("hasAuthority('CREATE_PAYMENT')")
-    public ResponseEntity<PaymentResponseDTO> createPayment(
-            @RequestAttribute("userId") Long userId,
-            @Valid @RequestBody PaymentRequestDTO paymentRequestDTO) {
+    @GetMapping
+    public ResponseEntity<List<PaymentResponseDTO>> getAllPayments() {
         try {
-            // Đảm bảo đơn hàng thuộc về người dùng (kiểm tra này có thể thực hiện trong service)
-            PaymentResponseDTO paymentResponse = paymentService.createPayment(paymentRequestDTO);
-            return new ResponseEntity<>(paymentResponse, HttpStatus.CREATED);
+            List<PaymentResponseDTO> payments = paymentService.getAllPayments();
+            return ResponseEntity.ok(payments);
         } catch (Exception e) {
-            log.error("Error creating payment for user {}: {}", userId, e.getMessage());
-            throw new IllegalArgumentException("Lỗi khi tạo thanh toán: " + e.getMessage());
+            log.error("Lỗi khi lấy danh sách tất cả thanh toán: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
         }
     }
 
     /**
-     * Xác nhận thanh toán VNPay (callback từ VNPay, không yêu cầu xác thực)
-     */
-    @GetMapping("/confirm")
-    public ResponseEntity<PaymentResponseDTO> confirmPayment(@RequestParam Map<String, String> vnpayParams) {
-        try {
-            PaymentResponseDTO paymentResponse = paymentService.confirmPayment(vnpayParams);
-            return ResponseEntity.ok(paymentResponse);
-        } catch (Exception e) {
-            log.error("Error confirming VNPay payment: {}", e.getMessage());
-            throw new IllegalArgumentException("Lỗi khi xác nhận thanh toán: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Lấy thông tin chi tiết thanh toán theo ID đơn hàng (cho người dùng)
+     * Lấy thông tin thanh toán theo orderId (dành cho admin, không cần kiểm tra userId)
      */
     @GetMapping("/order/{orderId}")
-    @PreAuthorize("hasAuthority('VIEW_PAYMENT')")
-    public ResponseEntity<PaymentResponseDTO> getPaymentByOrderId(
-            @RequestAttribute("userId") Long userId,
-            @PathVariable Long orderId) {
-        try {
-            PaymentResponseDTO paymentResponse = paymentService.getPaymentByOrderId(orderId, userId);
-            return ResponseEntity.ok(paymentResponse);
-        } catch (Exception e) {
-            log.error("Error fetching payment for order {} by user {}: {}", orderId, userId, e.getMessage());
-            throw new IllegalArgumentException("Lỗi khi lấy thông tin thanh toán: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Lấy thông tin chi tiết thanh toán theo ID đơn hàng (cho admin)
-     */
-    @GetMapping("/admin/order/{orderId}")
-    @PreAuthorize("hasAuthority('MANAGE_PAYMENT')")
-    public ResponseEntity<PaymentResponseDTO> getPaymentByOrderIdAdmin(@PathVariable Long orderId) {
+    public ResponseEntity<PaymentResponseDTO> getPaymentByOrderId(@PathVariable Long orderId) {
         try {
             PaymentResponseDTO paymentResponse = paymentService.getPaymentByOrderId(orderId, null);
             return ResponseEntity.ok(paymentResponse);
         } catch (Exception e) {
-            log.error("Error fetching payment for order {} by admin: {}", orderId, e.getMessage());
-            throw new IllegalArgumentException("Lỗi khi lấy thông tin thanh toán: " + e.getMessage());
+            log.error("Lỗi khi lấy thông tin thanh toán cho đơn hàng {}: {}", orderId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(null);
         }
+    }
+
+    /**
+     * Lấy thông tin thanh toán theo transactionCode
+     */
+    @GetMapping("/transaction/{transactionCode}")
+    public ResponseEntity<PaymentResponseDTO> getPaymentByTransactionCode(@PathVariable String transactionCode) {
+        try {
+            PaymentResponseDTO paymentResponse = paymentService.getPaymentByTransactionCode(transactionCode);
+            return ResponseEntity.ok(paymentResponse);
+        } catch (Exception e) {
+            log.error("Lỗi khi lấy thông tin thanh toán theo transactionCode {}: {}", transactionCode, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(null);
+        }
+    }
+
+    /**
+     * Lấy danh sách các thanh toán PENDING quá hạn
+     */
+    @GetMapping("/pending/overdue")
+    public ResponseEntity<List<PaymentResponseDTO>> getPendingPaymentsOlderThan(
+            @RequestParam(value = "minutes", defaultValue = "30") int minutes) {
+        try {
+            List<PaymentResponseDTO> overduePayments = paymentService.getPendingPaymentsOlderThan(
+                    LocalDateTime.now().minusMinutes(minutes));
+            return ResponseEntity.ok(overduePayments);
+        } catch (Exception e) {
+            log.error("Lỗi khi lấy danh sách thanh toán quá hạn: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
+
+    /**
+     * Cập nhật trạng thái thanh toán thủ công
+     */
+    @PutMapping("/{paymentId}/status")
+    public ResponseEntity<PaymentResponseDTO> updatePaymentStatus(
+            @PathVariable Long paymentId,
+            @RequestBody PaymentStatusRequest statusRequest) {
+        try {
+            PaymentResponseDTO updatedPayment = paymentService.updatePaymentStatus(paymentId, statusRequest.getStatus());
+            return ResponseEntity.ok(updatedPayment);
+        } catch (Exception e) {
+            log.error("Lỗi khi cập nhật trạng thái thanh toán {}: {}", paymentId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
+
+    /**
+     * Kiểm tra trạng thái thanh toán với cổng thanh toán
+     */
+    @GetMapping("/status/{transactionId}")
+    public ResponseEntity<ApiResponse> checkPaymentStatus(@PathVariable String transactionId) {
+        try {
+            String status = paymentService.checkPaymentStatusWithGateway(transactionId);
+            return ResponseEntity.ok(new ApiResponse(true, "Trạng thái thanh toán: " + status));
+        } catch (Exception e) {
+            log.error("Lỗi khi kiểm tra trạng thái thanh toán {}: {}", transactionId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Lỗi khi kiểm tra trạng thái: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Hủy thanh toán (dành cho admin, không cần kiểm tra userId)
+     */
+    @PostMapping("/{paymentId}/cancel")
+    public ResponseEntity<ApiResponse> cancelPayment(@PathVariable Long paymentId) {
+        try {
+            ApiResponse response = paymentService.cancelPayment(paymentId, null);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Lỗi khi hủy thanh toán {}: {}", paymentId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Lỗi khi hủy thanh toán: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Xác nhận thanh toán VNPay (callback từ VNPay, không yêu cầu xác thực cho admin)
+     */
+    @GetMapping("/confirm")
+    @PreAuthorize("permitAll()") // Cho phép truy cập không cần xác thực vì đây là callback từ VNPay
+    public ResponseEntity<ApiResponse> confirmPayment(@RequestParam Map<String, String> vnpayParams) {
+        try {
+            log.info("Admin nhận callback từ VNPay: {}", vnpayParams);
+            PaymentResponseDTO paymentResponse = paymentService.confirmPayment(vnpayParams);
+            return ResponseEntity.ok(new ApiResponse(true, "Xác nhận thanh toán thành công"));
+        } catch (Exception e) {
+            log.error("Lỗi khi xác nhận thanh toán VNPay: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Lỗi khi xác nhận thanh toán: " + e.getMessage()));
+        }
+    }
+}
+
+// DTO cho request cập nhật trạng thái
+class PaymentStatusRequest {
+    private Payment.PaymentStatus status;
+
+    public Payment.PaymentStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(Payment.PaymentStatus status) {
+        this.status = status;
     }
 }
