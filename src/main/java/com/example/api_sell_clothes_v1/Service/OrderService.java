@@ -88,9 +88,7 @@ public class OrderService {
         BigDecimal totalAmount = BigDecimal.ZERO;
         List<OrderItem> orderItems = new ArrayList<>();
 
-        // Save order first to get ID
-        Order savedOrder = orderRepository.save(order);
-
+        // Tính toán totalAmount trước khi lưu order
         for (CartItems cartItem : cartItems) {
             ProductVariant variant = cartItem.getVariant();
 
@@ -100,13 +98,11 @@ public class OrderService {
                     variant.getProduct().getSalePrice() :
                     variant.getProduct().getPrice();
 
-            // Create order item using OrderItemService
-            OrderItem orderItem = orderItemService.createOrderItem(
-                    savedOrder, variant, cartItem.getQuantity(), currentPrice);
-            orderItems.add(orderItem);
+            // Calculate item total (price * quantity)
+            BigDecimal itemTotal = currentPrice.multiply(BigDecimal.valueOf(cartItem.getQuantity()));
 
             // Update total amount
-            totalAmount = totalAmount.add(orderItem.getTotalPrice());
+            totalAmount = totalAmount.add(itemTotal);
         }
 
         // Calculate shipping fee based on chosen shipping method or default
@@ -123,19 +119,35 @@ public class OrderService {
                     createDTO.getTotalWeight());
 
             // Set shipping method in order
-            savedOrder.setShippingMethod(shippingMethod);
+            order.setShippingMethod(shippingMethod);
         } else {
             // Use default shipping fee calculation
             shippingFee = calculateDefaultShippingFee(totalAmount);
         }
 
-        savedOrder.setShippingFee(shippingFee);
+        order.setShippingFee(shippingFee);
 
         // Set total amount (includes shipping fee)
-        savedOrder.setTotalAmount(totalAmount.add(shippingFee));
+        order.setTotalAmount(totalAmount.add(shippingFee));
 
-        // Update order
-        savedOrder = orderRepository.save(order);
+        // Lưu order sau khi đã thiết lập totalAmount
+        Order savedOrder = orderRepository.save(order);
+
+        // Bây giờ thêm các orderItems vào savedOrder
+        for (CartItems cartItem : cartItems) {
+            ProductVariant variant = cartItem.getVariant();
+
+            // Get current price (consider sale price if available)
+            BigDecimal currentPrice = variant.getProduct().getSalePrice() != null &&
+                    variant.getProduct().getSalePrice().compareTo(BigDecimal.ZERO) > 0 ?
+                    variant.getProduct().getSalePrice() :
+                    variant.getProduct().getPrice();
+
+            // Create order item using OrderItemService
+            OrderItem orderItem = orderItemService.createOrderItem(
+                    savedOrder, variant, cartItem.getQuantity(), currentPrice);
+            orderItems.add(orderItem);
+        }
 
         // Remove items from cart
         for (CartItems item : cartItems) {

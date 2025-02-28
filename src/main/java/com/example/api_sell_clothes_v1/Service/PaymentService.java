@@ -19,13 +19,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.net.URI;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -40,7 +46,7 @@ public class PaymentService {
     private final PaymentMapper paymentMapper;
     private final VnpayConfig vnpayConfig;
     private final EmailService emailService;
-    private final ObjectMapper objectMapper; // Thêm ObjectMapper
+    private final ObjectMapper objectMapper;
 
     @Value("${vnpay.return-url}")
     private String vnpReturnUrl;
@@ -102,7 +108,6 @@ public class PaymentService {
         return paymentMapper.toDto(savedPayment);
     }
 
-
     /**
      * Tạo thanh toán mới cho đơn hàng
      */
@@ -141,16 +146,25 @@ public class PaymentService {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
+        String fullPaymentUrl = null;
         // Xử lý theo từng phương thức thanh toán
         if ("VNPAY".equalsIgnoreCase(paymentMethod.getCode())) {
-            // Tạo URL thanh toán VNPay
-            String paymentUrl = createVnpayPaymentUrl(order, requestDTO.getAmount(), requestDTO.getBankCode());
-            payment.setPaymentUrl(paymentUrl);
+            // Tạo URL thanh toán VNPay nhưng không lưu vào payment_url
+            fullPaymentUrl = createVnpayPaymentUrl(order, requestDTO.getAmount(), requestDTO.getBankCode());
+
+            // Lưu thông tin bổ sung vào payment_data nếu cần
+            try {
+                Map<String, String> paymentData = new HashMap<>();
+                paymentData.put("method", "VNPAY");
+                paymentData.put("bankCode", requestDTO.getBankCode() != null ? requestDTO.getBankCode() : "");
+                payment.setPaymentData(objectMapper.writeValueAsString(paymentData));
+            } catch (Exception e) {
+                log.error("Lỗi khi chuyển đổi dữ liệu thanh toán: {}", e.getMessage());
+                payment.setPaymentData("Error serializing payment data: " + e.getMessage());
+            }
         } else if ("COD".equalsIgnoreCase(paymentMethod.getCode())) {
-            // Thanh toán khi nhận hàng, không cần URL thanh toán
             payment.setPaymentData("Thanh toán khi nhận hàng");
         } else if ("BANK_TRANSFER".equalsIgnoreCase(paymentMethod.getCode())) {
-            // Chuyển khoản ngân hàng, cung cấp thông tin chuyển khoản
             String transferInfo = createBankTransferInfo(order);
             payment.setPaymentData(transferInfo);
         }
@@ -169,8 +183,14 @@ public class PaymentService {
         order.setPayment(savedPayment);
         orderRepository.save(order);
 
+        // Tạo DTO để trả về, gán fullPaymentUrl nếu có
+        PaymentResponseDTO responseDTO = paymentMapper.toDto(savedPayment);
+        if (fullPaymentUrl != null) {
+            responseDTO.setPaymentUrl(fullPaymentUrl); // Trả về URL VNPay trực tiếp trong response
+        }
+
         log.info("Đã tạo thanh toán ID: {} cho đơn hàng ID: {}", savedPayment.getPaymentId(), order.getOrderId());
-        return paymentMapper.toDto(savedPayment);
+        return responseDTO;
     }
 
     /**
@@ -227,11 +247,9 @@ public class PaymentService {
      */
     @Transactional
     public PaymentResponseDTO handleSuccessfulPayment(Payment payment, String note) {
-        // Cập nhật trạng thái thanh toán
         payment.setPaymentStatus(Payment.PaymentStatus.COMPLETED);
         payment.setUpdatedAt(LocalDateTime.now());
 
-        // Tạo lịch sử thanh toán
         PaymentHistory history = PaymentHistory.builder()
                 .payment(payment)
                 .status(PaymentHistoryStatus.COMPLETED)
@@ -240,25 +258,19 @@ public class PaymentService {
                 .build();
         payment.addPaymentHistory(history);
 
-        // Cập nhật đơn hàng
         Order order = payment.getOrder();
         if (order.getStatus() == Order.OrderStatus.PENDING) {
             order.setStatus(Order.OrderStatus.CONFIRMED);
-            // Nếu bạn có trường paid trong Order, hãy cập nhật ở đây
-            // order.setPaid(true);
             order.setUpdatedAt(LocalDateTime.now());
         }
 
-        // Lưu các thay đổi
         Payment savedPayment = paymentRepository.save(payment);
         orderRepository.save(order);
 
-        // Gửi email thông báo
         sendPaymentConfirmationEmail(savedPayment);
 
         log.info("Thanh toán ID: {} đã hoàn tất thành công cho đơn hàng ID: {}",
                 payment.getPaymentId(), order.getOrderId());
-
         return paymentMapper.toDto(savedPayment);
     }
 
@@ -267,11 +279,9 @@ public class PaymentService {
      */
     @Transactional
     public PaymentResponseDTO handleFailedPayment(Payment payment, String note) {
-        // Cập nhật trạng thái thanh toán
         payment.setPaymentStatus(Payment.PaymentStatus.FAILED);
         payment.setUpdatedAt(LocalDateTime.now());
 
-        // Tạo lịch sử thanh toán
         PaymentHistory history = PaymentHistory.builder()
                 .payment(payment)
                 .status(PaymentHistoryStatus.FAILED)
@@ -280,13 +290,48 @@ public class PaymentService {
                 .build();
         payment.addPaymentHistory(history);
 
-        // Lưu thay đổi
         Payment savedPayment = paymentRepository.save(payment);
 
         log.warn("Thanh toán ID: {} thất bại cho đơn hàng ID: {}, lý do: {}",
                 payment.getPaymentId(), payment.getOrder().getOrderId(), note);
-
         return paymentMapper.toDto(savedPayment);
+    }
+
+    /**
+     * Chuyển hướng người dùng đến URL thanh toán đầy đủ (giữ lại nhưng không cần thiết nếu không dùng)
+     */
+    public ResponseEntity<?> redirectToPayment(Long orderId) {
+        try {
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+            Payment payment = order.getPayment();
+            if (payment == null || payment.getPaymentData() == null) {
+                log.error("Không tìm thấy thông tin thanh toán cho đơn hàng ID: {}", orderId);
+                return ResponseEntity.badRequest().body(new ApiResponse(false, "Không tìm thấy thông tin thanh toán"));
+            }
+
+            String paymentData = payment.getPaymentData();
+            try {
+                Map<String, String> data = objectMapper.readValue(paymentData, HashMap.class);
+                String fullUrl = data.get("fullPaymentUrl");
+                if (fullUrl == null || fullUrl.isEmpty()) {
+                    log.error("URL thanh toán không hợp lệ cho đơn hàng ID: {}", orderId);
+                    return ResponseEntity.badRequest().body(new ApiResponse(false, "URL thanh toán không hợp lệ"));
+                }
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setLocation(URI.create(fullUrl));
+                return new ResponseEntity<>(headers, HttpStatus.FOUND);
+            } catch (Exception e) {
+                log.error("Lỗi khi phân tích payment_data cho đơn hàng ID {}: {}", orderId, e.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(new ApiResponse(false, "Lỗi khi phân tích dữ liệu thanh toán: " + e.getMessage()));
+            }
+        } catch (Exception e) {
+            log.error("Lỗi khi chuyển hướng thanh toán cho đơn hàng ID {}: {}", orderId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Lỗi khi chuyển hướng thanh toán: " + e.getMessage()));
+        }
     }
 
     /**
@@ -297,7 +342,6 @@ public class PaymentService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
 
-        // Kiểm tra quyền sở hữu nếu là user (không áp dụng cho admin, userId = null)
         if (userId != null && !order.getUser().getUserId().equals(userId)) {
             throw new IllegalArgumentException("Bạn không có quyền xem thanh toán này");
         }
@@ -318,21 +362,17 @@ public class PaymentService {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment", "id", paymentId));
 
-        // Kiểm tra quyền hủy thanh toán (nếu userId được cung cấp)
         if (userId != null && !payment.getOrder().getUser().getUserId().equals(userId)) {
             throw new IllegalArgumentException("Bạn không có quyền hủy thanh toán này");
         }
 
-        // Chỉ có thể hủy thanh toán đang chờ xử lý
         if (payment.getPaymentStatus() != Payment.PaymentStatus.PENDING) {
             throw new IllegalArgumentException("Không thể hủy thanh toán với trạng thái: " + payment.getPaymentStatus());
         }
 
-        // Cập nhật trạng thái thanh toán
         payment.setPaymentStatus(Payment.PaymentStatus.FAILED);
         payment.setUpdatedAt(LocalDateTime.now());
 
-        // Tạo lịch sử thanh toán
         PaymentHistory history = PaymentHistory.builder()
                 .payment(payment)
                 .status(PaymentHistoryStatus.FAILED)
@@ -351,20 +391,14 @@ public class PaymentService {
      * Kiểm tra trạng thái thanh toán với cổng thanh toán
      */
     public String checkPaymentStatusWithGateway(String transactionId) {
-        // Tìm đơn hàng bằng transactionId
         Payment payment = paymentRepository.findByTransactionCode(transactionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment", "transactionCode", transactionId));
 
-        // Xác định cổng thanh toán để gọi API phù hợp
         if ("VNPAY".equalsIgnoreCase(payment.getPaymentMethod().getCode())) {
-            // Gọi API VNPay để kiểm tra trạng thái
-            // Trong thực tế, bạn sẽ cần gọi API của VNPay tại đây
-
-            // Giả lập kết quả để demo
+            // Gọi API VNPay để kiểm tra trạng thái (giả lập)
             return payment.getPaymentStatus().name().toLowerCase();
         }
 
-        // Mặc định trả về trạng thái hiện tại
         return payment.getPaymentStatus().name().toLowerCase();
     }
 
@@ -376,7 +410,6 @@ public class PaymentService {
         Payment payment = paymentRepository.findByTransactionCode(transactionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment", "transactionCode", transactionId));
 
-        // Chỉ cập nhật nếu đang ở trạng thái PENDING
         if (payment.getPaymentStatus() == Payment.PaymentStatus.PENDING) {
             handleSuccessfulPayment(payment, "Thanh toán thành công (từ webhook) - Mã giao dịch: " + transactionId);
         }
@@ -390,7 +423,6 @@ public class PaymentService {
         Payment payment = paymentRepository.findByTransactionCode(transactionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment", "transactionCode", transactionId));
 
-        // Chỉ cập nhật nếu đang ở trạng thái PENDING
         if (payment.getPaymentStatus() == Payment.PaymentStatus.PENDING) {
             handleFailedPayment(payment, "Thanh toán thất bại (từ webhook) - Lý do: " + reason);
         }
@@ -403,18 +435,15 @@ public class PaymentService {
     public void checkPendingPayments() {
         log.info("Đang chạy job kiểm tra các thanh toán đang chờ");
 
-        // Lấy danh sách thanh toán đang chờ xử lý và đã tạo hơn 30 phút
         List<Payment> pendingPayments = paymentRepository.findPendingPaymentsOlderThan(
                 LocalDateTime.now().minusMinutes(30),
                 Payment.PaymentStatus.PENDING);
 
         for (Payment payment : pendingPayments) {
             try {
-                // Với mỗi phương thức thanh toán, kiểm tra trạng thái thực tế
                 if ("VNPAY".equalsIgnoreCase(payment.getPaymentMethod().getCode())
                         && payment.getTransactionCode() != null) {
                     String status = checkPaymentStatusWithGateway(payment.getTransactionCode());
-
                     if ("completed".equals(status)) {
                         log.info("Tự động cập nhật thanh toán {} thành COMPLETED", payment.getPaymentId());
                         handleSuccessfulPayment(payment, "Thanh toán hoàn tất (tự động kiểm tra)");
@@ -434,8 +463,6 @@ public class PaymentService {
      */
     private String createVnpayPaymentUrl(Order order, BigDecimal amount, String bankCode) {
         Map<String, String> vnpParams = new HashMap<>();
-
-        // Thông tin cơ bản
         vnpParams.put("vnp_Version", vnpayConfig.getVersion());
         vnpParams.put("vnp_Command", "pay");
         vnpParams.put("vnp_TmnCode", vnpayConfig.getTmnCode());
@@ -452,7 +479,6 @@ public class PaymentService {
             vnpParams.put("vnp_BankCode", bankCode);
         }
 
-        // Tạo URL thanh toán
         return vnpayConfig.createPaymentUrl(vnpParams);
     }
 
@@ -466,7 +492,6 @@ public class PaymentService {
         info.append("Chủ tài khoản: CÔNG TY TNHH SHOP QUẦN ÁO\n");
         info.append("Số tiền: ").append(order.getTotalAmount()).append(" VND\n");
         info.append("Nội dung: Thanh toan DH ").append(order.getOrderId());
-
         return info.toString();
     }
 
@@ -481,8 +506,7 @@ public class PaymentService {
             String orderNumber = order.getOrderId().toString();
             String paymentMethodName = payment.getPaymentMethod().getName();
             String amount = payment.getAmount().toString();
-            String transactionId = payment.getTransactionCode() != null ?
-                    payment.getTransactionCode() : "N/A";
+            String transactionId = payment.getTransactionCode() != null ? payment.getTransactionCode() : "N/A";
 
             emailService.sendPaymentConfirmationEmail(
                     toEmail,
@@ -494,7 +518,6 @@ public class PaymentService {
             );
         } catch (Exception e) {
             log.error("Lỗi khi gửi email xác nhận thanh toán: {}", e.getMessage());
-            // Không throw exception ra ngoài vì đây không phải lỗi nghiêm trọng
         }
     }
 }

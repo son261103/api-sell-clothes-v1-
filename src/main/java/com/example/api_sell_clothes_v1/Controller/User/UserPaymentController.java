@@ -150,6 +150,20 @@ public class UserPaymentController {
     }
 
     /**
+     * Chuyển hướng đến URL thanh toán đầy đủ
+     */
+    @GetMapping("/payment-redirect/{orderId}")
+    public ResponseEntity<?> redirectToPayment(@PathVariable Long orderId) {
+        try {
+            return paymentService.redirectToPayment(orderId);
+        } catch (Exception e) {
+            log.error("Lỗi khi chuyển hướng thanh toán: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Lỗi khi chuyển hướng thanh toán: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Webhook endpoint để nhận thông báo từ cổng thanh toán
      */
     @PostMapping("/webhook")
