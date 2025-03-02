@@ -10,10 +10,14 @@ import com.example.api_sell_clothes_v1.Service.PaymentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URLEncoder;
 import java.util.List;
 import java.util.Map;
 
@@ -33,7 +37,6 @@ public class UserPaymentController {
             @RequestHeader(value = "X-User-Id") Long userId,
             @Valid @RequestBody PaymentRequestDTO paymentRequestDTO) {
         try {
-            // Thêm userId vào DTO để kiểm tra quyền sở hữu
             paymentRequestDTO.setUserId(userId);
             PaymentResponseDTO paymentResponse = paymentService.createPayment(paymentRequestDTO);
             return new ResponseEntity<>(paymentResponse, HttpStatus.CREATED);
@@ -45,6 +48,51 @@ public class UserPaymentController {
             log.error("Lỗi khi tạo thanh toán cho userId {}: {}", userId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse(false, "Lỗi khi tạo thanh toán: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Xử lý callback từ VNPay và chuyển hướng về frontend React
+     */
+    @GetMapping("/vnpay-callback")
+    public ResponseEntity<?> handleVnpayCallback(@RequestParam Map<String, String> vnpayParams) {
+        try {
+            log.info("Nhận callback từ VNPay: {}", vnpayParams);
+            PaymentResponseDTO paymentResponse = paymentService.confirmPayment(vnpayParams);
+
+            // Tạo URL chuyển hướng đến trang React với các tham số VNPay đã mã hóa
+            String redirectUrl = "http://localhost:3001/payment/confirm?" + buildQueryString(vnpayParams);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setLocation(URI.create(redirectUrl));
+            return new ResponseEntity<>(headers, HttpStatus.FOUND); // 302 Redirect
+        } catch (Exception e) {
+            log.error("Lỗi khi xử lý callback VNPay: {}", e.getMessage(), e);
+            String errorUrl;
+            try {
+                errorUrl = "http://localhost:3001/payment/error?message=" + URLEncoder.encode(e.getMessage(), "UTF-8");
+            } catch (UnsupportedEncodingException ex) {
+                log.error("Lỗi mã hóa URL: {}", ex.getMessage(), ex);
+                errorUrl = "http://localhost:3001/payment/error?message=Unknown%20error";
+            }
+            HttpHeaders headers = new HttpHeaders();
+            headers.setLocation(URI.create(errorUrl));
+            return new ResponseEntity<>(headers, HttpStatus.FOUND);
+        }
+    }
+
+    /**
+     * Giữ endpoint confirm hiện tại (trả về JSON cho tương thích cũ)
+     */
+    @GetMapping("/confirm")
+    public ResponseEntity<?> confirmPayment(@RequestParam Map<String, String> vnpayParams) {
+        try {
+            log.info("Nhận callback từ VNPay (endpoint cũ): {}", vnpayParams);
+            PaymentResponseDTO paymentResponse = paymentService.confirmPayment(vnpayParams);
+            return ResponseEntity.ok(new ApiResponse(true, "Thanh toán thành công"));
+        } catch (Exception e) {
+            log.error("Lỗi khi xác nhận thanh toán VNPay: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Lỗi khi xác nhận thanh toán: " + e.getMessage()));
         }
     }
 
@@ -132,24 +180,6 @@ public class UserPaymentController {
     }
 
     /**
-     * Xác nhận thanh toán VNPay (callback từ VNPay, không yêu cầu xác thực)
-     */
-    @GetMapping("/confirm")
-    public ResponseEntity<?> confirmPayment(@RequestParam Map<String, String> vnpayParams) {
-        try {
-            log.info("Nhận callback từ VNPay: {}", vnpayParams);
-            PaymentResponseDTO paymentResponse = paymentService.confirmPayment(vnpayParams);
-
-            // Chuyển hướng người dùng đến trang thông báo thành công
-            return ResponseEntity.ok(new ApiResponse(true, "Thanh toán thành công"));
-        } catch (Exception e) {
-            log.error("Lỗi khi xác nhận thanh toán VNPay: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse(false, "Lỗi khi xác nhận thanh toán: " + e.getMessage()));
-        }
-    }
-
-    /**
      * Chuyển hướng đến URL thanh toán đầy đủ
      */
     @GetMapping("/payment-redirect/{orderId}")
@@ -170,15 +200,12 @@ public class UserPaymentController {
     public ResponseEntity<String> paymentWebhook(@RequestBody Map<String, Object> payloadData) {
         try {
             log.info("Nhận webhook thanh toán: {}", payloadData);
-
-            // Xác thực webhook
             String token = (String) payloadData.get("token");
             if (token == null || !isValidWebhookToken(token)) {
                 log.warn("Token webhook không hợp lệ");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token không hợp lệ");
             }
 
-            // Xử lý dữ liệu webhook
             String transactionId = (String) payloadData.get("transactionId");
             String status = (String) payloadData.get("status");
 
@@ -199,14 +226,24 @@ public class UserPaymentController {
         }
     }
 
-    /**
-     * Kiểm tra tính hợp lệ của token webhook
-     */
     private boolean isValidWebhookToken(String token) {
-        // Thực hiện xác thực token, ví dụ:
-        // - So sánh với mã bí mật được cấu hình trong ứng dụng
-        // - Xác thực chữ ký số
-        // Đây chỉ là giả lập đơn giản
         return token != null && token.length() > 10;
+    }
+
+    private String buildQueryString(Map<String, String> params) {
+        StringBuilder query = new StringBuilder();
+        try {
+            for (Map.Entry<String, String> entry : params.entrySet()) {
+                if (query.length() > 0) {
+                    query.append("&");
+                }
+                String encodedValue = URLEncoder.encode(entry.getValue(), "UTF-8");
+                query.append(entry.getKey()).append("=").append(encodedValue);
+            }
+            return query.toString();
+        } catch (UnsupportedEncodingException e) {
+            log.error("Lỗi mã hóa query string: {}", e.getMessage(), e);
+            return ""; // Trả về chuỗi rỗng hoặc xử lý lỗi theo cách phù hợp
+        }
     }
 }

@@ -534,8 +534,10 @@ public class PaymentService {
                     amount,
                     transactionId
             );
+            log.info("Đã gửi email xác nhận thanh toán cho đơn hàng ID: {}", order.getOrderId());
         } catch (Exception e) {
-            log.error("Lỗi khi gửi email xác nhận thanh toán: {}", e.getMessage());
+            log.error("Lỗi khi gửi email xác nhận thanh toán cho đơn hàng ID: {}. Chi tiết: {}",
+                    payment.getOrder().getOrderId(), e.getMessage(), e);
         }
     }
 
