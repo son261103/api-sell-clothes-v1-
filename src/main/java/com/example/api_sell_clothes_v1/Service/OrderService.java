@@ -37,46 +37,32 @@ public class OrderService {
     private final ShippingService shippingService;
 
     /**
-     * Create a new order from cart items
+     * Tạo đơn hàng mới từ giỏ hàng
      */
     @Transactional
     public OrderResponseDTO createOrder(Long userId, CreateOrderDTO createDTO) {
-        // Get user and validate
+        // Kiểm tra người dùng
         Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
-        // Get user address
+        // Kiểm tra địa chỉ
         UserAddress address = addressRepository.findById(createDTO.getAddressId())
                 .orElseThrow(() -> new EntityNotFoundException("Address not found"));
-
-        // Verify address belongs to user
         if (!address.getUser().getUserId().equals(userId)) {
             throw new IllegalArgumentException("Address does not belong to user");
         }
 
-        // Get user's cart
+        // Lấy giỏ hàng của người dùng
         Carts cart = cartsRepository.findByUserUserId(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Cart not found"));
 
-        // Get selected items from cart
-        List<CartItems> cartItems;
-        if (createDTO.getSelectedVariantIds() != null && !createDTO.getSelectedVariantIds().isEmpty()) {
-            // Store the items with selected variant IDs
-            cartItems = new ArrayList<>();
-            for (Long variantId : createDTO.getSelectedVariantIds()) {
-                cartItemsRepository.findByCartCartIdAndVariantVariantId(cart.getCartId(), variantId)
-                        .ifPresent(cartItems::add);
-            }
-        } else {
-            // Use all selected items
-            cartItems = cartItemsRepository.findByCartCartIdAndIsSelectedTrue(cart.getCartId());
-        }
-
+        // Lấy các mục được chọn từ giỏ hàng
+        List<CartItems> cartItems = getSelectedCartItems(cart, createDTO.getSelectedVariantIds());
         if (cartItems.isEmpty()) {
             throw new IllegalArgumentException("No items selected for order");
         }
 
-        // Create order
+        // Tạo đơn hàng
         Order order = new Order();
         order.setUser(user);
         order.setAddress(address);
@@ -84,82 +70,39 @@ public class OrderService {
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
 
-        // Calculate order amount
-        BigDecimal totalAmount = BigDecimal.ZERO;
-        List<OrderItem> orderItems = new ArrayList<>();
+        // Tính tổng tiền hàng (chưa bao gồm phí vận chuyển)
+        BigDecimal subTotal = calculateTotalAmount(cartItems);
 
-        // Tính toán totalAmount trước khi lưu order
-        for (CartItems cartItem : cartItems) {
-            ProductVariant variant = cartItem.getVariant();
-
-            // Get current price (consider sale price if available)
-            BigDecimal currentPrice = variant.getProduct().getSalePrice() != null &&
-                    variant.getProduct().getSalePrice().compareTo(BigDecimal.ZERO) > 0 ?
-                    variant.getProduct().getSalePrice() :
-                    variant.getProduct().getPrice();
-
-            // Calculate item total (price * quantity)
-            BigDecimal itemTotal = currentPrice.multiply(BigDecimal.valueOf(cartItem.getQuantity()));
-
-            // Update total amount
-            totalAmount = totalAmount.add(itemTotal);
-        }
-
-        // Calculate shipping fee based on chosen shipping method or default
-        BigDecimal shippingFee;
-        if (createDTO.getShippingMethodId() != null) {
-            // Get shipping method
-            ShippingMethod shippingMethod = shippingMethodRepository.findById(createDTO.getShippingMethodId())
-                    .orElseThrow(() -> new EntityNotFoundException("Shipping method not found"));
-
-            // Calculate shipping fee using shipping service
-            shippingFee = shippingService.calculateShippingFee(
-                    totalAmount,
-                    shippingMethod.getId(),
-                    createDTO.getTotalWeight());
-
-            // Set shipping method in order
-            order.setShippingMethod(shippingMethod);
-        } else {
-            // Use default shipping fee calculation
-            shippingFee = calculateDefaultShippingFee(totalAmount);
-        }
-
+        // Tính phí vận chuyển
+        BigDecimal shippingFee = calculateShippingFee(createDTO, subTotal);
         order.setShippingFee(shippingFee);
 
-        // Set total amount (includes shipping fee)
-        order.setTotalAmount(totalAmount.add(shippingFee));
+        // Tổng tiền cuối cùng bao gồm phí vận chuyển
+        BigDecimal totalAmount = subTotal.add(shippingFee);
+        order.setTotalAmount(totalAmount);
 
-        // Lưu order sau khi đã thiết lập totalAmount
+        // Gán phương thức vận chuyển nếu có
+        if (createDTO.getShippingMethodId() != null) {
+            ShippingMethod shippingMethod = shippingMethodRepository.findById(createDTO.getShippingMethodId())
+                    .orElseThrow(() -> new EntityNotFoundException("Shipping method not found"));
+            order.setShippingMethod(shippingMethod);
+        } else {
+            throw new IllegalArgumentException("Shipping method ID is required");
+        }
+
+        // Lưu đơn hàng
         Order savedOrder = orderRepository.save(order);
 
-        // Bây giờ thêm các orderItems vào savedOrder
-        for (CartItems cartItem : cartItems) {
-            ProductVariant variant = cartItem.getVariant();
+        // Tạo các mục đơn hàng
+        createOrderItems(savedOrder, cartItems);
 
-            // Get current price (consider sale price if available)
-            BigDecimal currentPrice = variant.getProduct().getSalePrice() != null &&
-                    variant.getProduct().getSalePrice().compareTo(BigDecimal.ZERO) > 0 ?
-                    variant.getProduct().getSalePrice() :
-                    variant.getProduct().getPrice();
-
-            // Create order item using OrderItemService
-            OrderItem orderItem = orderItemService.createOrderItem(
-                    savedOrder, variant, cartItem.getQuantity(), currentPrice);
-            orderItems.add(orderItem);
-        }
-
-        // Remove items from cart
-        for (CartItems item : cartItems) {
-            cartItemsRepository.delete(item);
-        }
-
-        log.info("Created order with ID: {} for user ID: {}", savedOrder.getOrderId(), userId);
+        log.info("Created order with ID: {} for user ID: {}, shipping_fee: {}, total_amount: {}",
+                savedOrder.getOrderId(), userId, shippingFee, totalAmount);
         return orderMapper.toDto(savedOrder);
     }
 
     /**
-     * Get order by ID
+     * Lấy thông tin đơn hàng theo ID
      */
     @Transactional(readOnly = true)
     public OrderResponseDTO getOrderById(Long orderId) {
@@ -169,142 +112,118 @@ public class OrderService {
     }
 
     /**
-     * Get order by ID for specific user
+     * Lấy thông tin đơn hàng của người dùng theo ID
      */
     @Transactional(readOnly = true)
     public OrderResponseDTO getUserOrderById(Long userId, Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
-
-        // Verify order belongs to user
         if (!order.getUser().getUserId().equals(userId)) {
             throw new IllegalArgumentException("Order does not belong to user");
         }
-
         return orderMapper.toDto(order);
     }
 
     /**
-     * Get all orders for a user
+     * Lấy tất cả đơn hàng của người dùng
      */
     @Transactional(readOnly = true)
     public Page<OrderSummaryDTO> getUserOrders(Long userId, Pageable pageable) {
         Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
-
         Page<Order> orders = orderRepository.findByUserOrderByCreatedAtDesc(user, pageable);
         return orders.map(orderMapper::toSummaryDto);
     }
 
     /**
-     * Get user orders by status
+     * Lấy đơn hàng của người dùng theo trạng thái
      */
     @Transactional(readOnly = true)
     public Page<OrderSummaryDTO> getUserOrdersByStatus(Long userId, Order.OrderStatus status, Pageable pageable) {
         Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
-
         Page<Order> orders = orderRepository.findByUserAndStatusOrderByCreatedAtDesc(user, status, pageable);
         return orders.map(orderMapper::toSummaryDto);
     }
 
     /**
-     * Cancel an order
+     * Hủy đơn hàng
      */
     @Transactional
     public OrderResponseDTO cancelOrder(Long userId, Long orderId, CancelOrderDTO cancelDTO) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
 
-        // Verify order belongs to user
         if (!order.getUser().getUserId().equals(userId)) {
             throw new IllegalArgumentException("Order does not belong to user");
         }
 
-        // Check if order can be cancelled
         if (order.getStatus() != Order.OrderStatus.PENDING && order.getStatus() != Order.OrderStatus.PROCESSING) {
             throw new InvalidOrderStatusException("Order cannot be cancelled in its current status: " + order.getStatus());
         }
 
-        // Update order status
         order.setStatus(Order.OrderStatus.CANCELLED);
         order.setUpdatedAt(LocalDateTime.now());
-
-        // Restore stock quantities using OrderItemService
         orderItemService.restoreInventory(orderId);
 
         Order savedOrder = orderRepository.save(order);
         log.info("Cancelled order with ID: {}", orderId);
-
         return orderMapper.toDto(savedOrder);
     }
 
     /**
-     * Update order status (admin only)
+     * Cập nhật trạng thái đơn hàng (admin only)
      */
     @Transactional
     public OrderResponseDTO updateOrderStatus(Long orderId, UpdateOrderStatusDTO updateDTO) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
 
-        // Validate status transition
         validateStatusTransition(order.getStatus(), updateDTO.getStatus());
 
-        // If cancelling, restore stock
         if (updateDTO.getStatus() == Order.OrderStatus.CANCELLED) {
             orderItemService.restoreInventory(orderId);
         }
 
-        // Update order status
         order.setStatus(updateDTO.getStatus());
         order.setUpdatedAt(LocalDateTime.now());
 
         Order savedOrder = orderRepository.save(order);
         log.info("Updated order status to {} for order ID: {}", updateDTO.getStatus(), orderId);
-
         return orderMapper.toDto(savedOrder);
     }
 
     /**
-     * Update shipping method for an order (admin only)
+     * Cập nhật phương thức vận chuyển (admin only)
      */
     @Transactional
     public OrderResponseDTO updateOrderShipping(Long orderId, Long shippingMethodId, Double totalWeight) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
 
-        // Only allow update if order is in PENDING or PROCESSING state
         if (order.getStatus() != Order.OrderStatus.PENDING && order.getStatus() != Order.OrderStatus.PROCESSING) {
             throw new InvalidOrderStatusException("Shipping method can only be updated for orders in PENDING or PROCESSING state");
         }
 
-        // Get shipping method
         ShippingMethod shippingMethod = shippingMethodRepository.findById(shippingMethodId)
                 .orElseThrow(() -> new EntityNotFoundException("Shipping method not found"));
 
-        // Calculate base order amount (excluding current shipping fee)
-        BigDecimal baseAmount = order.getTotalAmount();
-        if (order.getShippingFee() != null) {
-            baseAmount = baseAmount.subtract(order.getShippingFee());
-        }
-
-        // Calculate new shipping fee
+        // Tính lại phí vận chuyển dựa trên tổng tiền hàng (loại trừ phí vận chuyển cũ)
+        BigDecimal baseAmount = order.getTotalAmount().subtract(order.getShippingFee() != null ? order.getShippingFee() : BigDecimal.ZERO);
         BigDecimal newShippingFee = shippingService.calculateShippingFee(baseAmount, shippingMethodId, totalWeight);
 
-        // Update order
         order.setShippingMethod(shippingMethod);
         order.setShippingFee(newShippingFee);
         order.setTotalAmount(baseAmount.add(newShippingFee));
         order.setUpdatedAt(LocalDateTime.now());
 
         Order updatedOrder = orderRepository.save(order);
-        log.info("Updated shipping method to {} for order ID: {}", shippingMethodId, orderId);
-
+        log.info("Updated shipping method to {} for order ID: {}, new shipping_fee: {}", shippingMethodId, orderId, newShippingFee);
         return orderMapper.toDto(updatedOrder);
     }
 
     /**
-     * Get all orders (admin only)
+     * Lấy tất cả đơn hàng (admin only)
      */
     @Transactional(readOnly = true)
     public Page<OrderSummaryDTO> getAllOrders(Pageable pageable) {
@@ -313,7 +232,7 @@ public class OrderService {
     }
 
     /**
-     * Get orders by status (admin only)
+     * Lấy đơn hàng theo trạng thái (admin only)
      */
     @Transactional(readOnly = true)
     public Page<OrderSummaryDTO> getOrdersByStatus(Order.OrderStatus status, Pageable pageable) {
@@ -322,7 +241,7 @@ public class OrderService {
     }
 
     /**
-     * Search orders (admin only)
+     * Tìm kiếm đơn hàng (admin only)
      */
     @Transactional(readOnly = true)
     public Page<OrderSummaryDTO> searchOrders(String search, Pageable pageable) {
@@ -331,7 +250,7 @@ public class OrderService {
     }
 
     /**
-     * Get filtered orders (admin only)
+     * Lấy đơn hàng theo bộ lọc (admin only)
      */
     @Transactional(readOnly = true)
     public Page<OrderSummaryDTO> getFilteredOrders(
@@ -341,7 +260,7 @@ public class OrderService {
     }
 
     /**
-     * Get order statistics (admin only)
+     * Lấy thống kê đơn hàng (admin only)
      */
     @Transactional(readOnly = true)
     public OrderStatisticsDTO getOrderStatistics() {
@@ -363,94 +282,131 @@ public class OrderService {
     }
 
     /**
-     * Delete order (admin only, for testing)
+     * Xóa đơn hàng (admin only, dùng cho testing)
      */
     @Transactional
     public ApiResponse deleteOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
-
-        // Delete order (OrderItemService will handle deleting items)
         orderItemService.deleteOrderItems(orderId);
         orderRepository.delete(order);
         log.info("Deleted order with ID: {}", orderId);
-
         return new ApiResponse(true, "Order successfully deleted");
     }
 
     /**
-     * Get bestselling products
+     * Lấy danh sách sản phẩm bán chạy
      */
     @Transactional(readOnly = true)
     public List<BestsellingProductDTO> getBestsellingProducts(int limit) {
-        // Delegate to OrderItemService
         return orderItemService.getBestsellingProducts(limit);
     }
 
     /**
-     * Get orders by shipping method (admin only)
+     * Lấy đơn hàng theo phương thức vận chuyển (admin only)
      */
     @Transactional(readOnly = true)
     public Page<OrderSummaryDTO> getOrdersByShippingMethod(Long shippingMethodId, Pageable pageable) {
         ShippingMethod method = shippingMethodRepository.findById(shippingMethodId)
                 .orElseThrow(() -> new EntityNotFoundException("Shipping method not found"));
-
         Page<Order> orders = orderRepository.findByShippingMethod(method, pageable);
         return orders.map(orderMapper::toSummaryDto);
     }
 
     // Helper methods
-    // Shipping fee constants - duplicated from ShippingService for backward compatibility
     private static final BigDecimal FREE_SHIPPING_THRESHOLD = new BigDecimal("500000");
 
+    private List<CartItems> getSelectedCartItems(Carts cart, List<Long> selectedVariantIds) {
+        if (selectedVariantIds != null && !selectedVariantIds.isEmpty()) {
+            List<CartItems> items = new ArrayList<>();
+            for (Long variantId : selectedVariantIds) {
+                cartItemsRepository.findByCartCartIdAndVariantVariantId(cart.getCartId(), variantId)
+                        .ifPresent(items::add);
+            }
+            return items;
+        }
+        return cartItemsRepository.findByCartCartIdAndIsSelectedTrue(cart.getCartId());
+    }
+
+    private BigDecimal calculateTotalAmount(List<CartItems> cartItems) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (CartItems item : cartItems) {
+            ProductVariant variant = item.getVariant();
+            BigDecimal price = variant.getProduct().getSalePrice() != null &&
+                    variant.getProduct().getSalePrice().compareTo(BigDecimal.ZERO) > 0 ?
+                    variant.getProduct().getSalePrice() : variant.getProduct().getPrice();
+            total = total.add(price.multiply(BigDecimal.valueOf(item.getQuantity())));
+        }
+        return total;
+    }
+
+    private BigDecimal calculateShippingFee(CreateOrderDTO createDTO, BigDecimal subTotal) {
+        if (createDTO.getShippingMethodId() != null) {
+            BigDecimal shippingFee = shippingService.calculateShippingFee(subTotal, createDTO.getShippingMethodId(), createDTO.getTotalWeight());
+            log.debug("Calculated shipping fee for shipping_method_id {}: {}", createDTO.getShippingMethodId(), shippingFee);
+            return shippingFee;
+        }
+        return calculateDefaultShippingFee(subTotal);
+    }
+
     private BigDecimal calculateDefaultShippingFee(BigDecimal orderAmount) {
-        // Free shipping for orders above the threshold
         if (orderAmount.compareTo(FREE_SHIPPING_THRESHOLD) >= 0) {
             return BigDecimal.ZERO;
         }
-        return new BigDecimal("30000"); // Default fee
+        BigDecimal defaultFee = new BigDecimal("30000");
+        log.debug("Applied default shipping fee: {}", defaultFee);
+        return defaultFee;
+    }
+
+    private List<OrderItem> createOrderItems(Order order, List<CartItems> cartItems) {
+        List<OrderItem> orderItems = new ArrayList<>();
+        for (CartItems cartItem : cartItems) {
+            ProductVariant variant = cartItem.getVariant();
+            BigDecimal price = variant.getProduct().getSalePrice() != null &&
+                    variant.getProduct().getSalePrice().compareTo(BigDecimal.ZERO) > 0 ?
+                    variant.getProduct().getSalePrice() : variant.getProduct().getPrice();
+            OrderItem orderItem = orderItemService.createOrderItem(order, variant, cartItem.getQuantity(), price);
+            orderItems.add(orderItem);
+        }
+        return orderItems;
     }
 
     private void validateStatusTransition(Order.OrderStatus currentStatus, Order.OrderStatus newStatus) {
-        // Cannot change to the same status
         if (currentStatus == newStatus) {
             throw new InvalidOrderStatusException("Order is already in " + currentStatus + " status");
         }
 
-        // Define valid transitions
         switch (currentStatus) {
             case PENDING:
-                // Pending can transition to Processing, Shipping, or Cancelled
                 if (newStatus != Order.OrderStatus.PROCESSING &&
                         newStatus != Order.OrderStatus.SHIPPING &&
-                        newStatus != Order.OrderStatus.CANCELLED) {
+                        newStatus != Order.OrderStatus.CANCELLED &&
+                        newStatus != Order.OrderStatus.CONFIRMED) {
                     throw new InvalidOrderStatusException("Cannot transition from " + currentStatus + " to " + newStatus);
                 }
                 break;
 
             case PROCESSING:
-                // Processing can transition to Shipping or Cancelled
-                if (newStatus != Order.OrderStatus.SHIPPING &&
-                        newStatus != Order.OrderStatus.CANCELLED) {
+                if (newStatus != Order.OrderStatus.SHIPPING && newStatus != Order.OrderStatus.CANCELLED) {
                     throw new InvalidOrderStatusException("Cannot transition from " + currentStatus + " to " + newStatus);
                 }
                 break;
 
             case SHIPPING:
-                // Shipping can transition to Completed or Cancelled
-                if (newStatus != Order.OrderStatus.COMPLETED &&
-                        newStatus != Order.OrderStatus.CANCELLED) {
+                if (newStatus != Order.OrderStatus.COMPLETED && newStatus != Order.OrderStatus.CANCELLED) {
+                    throw new InvalidOrderStatusException("Cannot transition from " + currentStatus + " to " + newStatus);
+                }
+                break;
+
+            case CONFIRMED:
+                if (newStatus != Order.OrderStatus.PROCESSING && newStatus != Order.OrderStatus.SHIPPING) {
                     throw new InvalidOrderStatusException("Cannot transition from " + currentStatus + " to " + newStatus);
                 }
                 break;
 
             case COMPLETED:
-                // Completed is a final state and cannot be changed
-                throw new InvalidOrderStatusException("Cannot change order status once Completed");
-
             case CANCELLED:
-                // Cancelled is a final state and cannot be changed
-                throw new InvalidOrderStatusException("Cannot change order status once Cancelled");
+                throw new InvalidOrderStatusException("Cannot change order status once " + currentStatus);
 
             default:
                 throw new InvalidOrderStatusException("Unknown order status: " + currentStatus);

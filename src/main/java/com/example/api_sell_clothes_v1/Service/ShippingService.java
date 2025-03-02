@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -29,22 +28,15 @@ public class ShippingService {
     private final OrderRepository orderRepository;
     private final ShippingMapper shippingMapper;
 
-    // Shipping fee constants
     private static final BigDecimal DEFAULT_SHIPPING_FEE = new BigDecimal("30000");
     private static final BigDecimal FREE_SHIPPING_THRESHOLD = new BigDecimal("500000");
 
-    /**
-     * Get all available shipping methods
-     */
     @Transactional(readOnly = true)
     public List<ShippingMethodDTO> getAllShippingMethods() {
         List<ShippingMethod> methods = shippingMethodRepository.findAll();
         return shippingMapper.toDto(methods);
     }
 
-    /**
-     * Get shipping method by ID
-     */
     @Transactional(readOnly = true)
     public ShippingMethodDTO getShippingMethodById(Long id) {
         ShippingMethod method = shippingMethodRepository.findById(id)
@@ -52,12 +44,8 @@ public class ShippingService {
         return shippingMapper.toDto(method);
     }
 
-    /**
-     * Create new shipping method (admin only)
-     */
     @Transactional
     public ShippingMethodDTO createShippingMethod(ShippingMethodCreateDTO createDTO) {
-        // Verify method name is unique
         if (shippingMethodRepository.findByName(createDTO.getName()).isPresent()) {
             throw new IllegalArgumentException("Shipping method with name " + createDTO.getName() + " already exists");
         }
@@ -68,22 +56,17 @@ public class ShippingService {
         return shippingMapper.toDto(savedMethod);
     }
 
-    /**
-     * Update existing shipping method (admin only)
-     */
     @Transactional
     public ShippingMethodDTO updateShippingMethod(Long id, ShippingMethodUpdateDTO updateDTO) {
         ShippingMethod method = shippingMethodRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Shipping method not found with ID: " + id));
 
-        // Check for unique name if changed
         if (updateDTO.getName() != null && !method.getName().equals(updateDTO.getName())) {
             if (shippingMethodRepository.findByName(updateDTO.getName()).isPresent()) {
                 throw new IllegalArgumentException("Shipping method with name " + updateDTO.getName() + " already exists");
             }
         }
 
-        // Update entity from DTO
         shippingMapper.updateEntityFromDTO(updateDTO, method);
 
         ShippingMethod updatedMethod = shippingMethodRepository.save(method);
@@ -91,9 +74,6 @@ public class ShippingService {
         return shippingMapper.toDto(updatedMethod);
     }
 
-    /**
-     * Delete shipping method (admin only)
-     */
     @Transactional
     public ApiResponse deleteShippingMethod(Long id) {
         if (!shippingMethodRepository.existsById(id)) {
@@ -105,39 +85,30 @@ public class ShippingService {
         return new ApiResponse(true, "Shipping method deleted successfully");
     }
 
-    /**
-     * Calculate shipping fee based on order total and shipping method
-     */
     @Transactional(readOnly = true)
     public BigDecimal calculateShippingFee(BigDecimal orderTotal, Long shippingMethodId, Double totalWeight) {
-        // Free shipping for orders above the threshold
-        if (orderTotal.compareTo(FREE_SHIPPING_THRESHOLD) >= 0) {
-            return BigDecimal.ZERO;
-        }
 
-        // Get shipping method
         ShippingMethod method = shippingMethodRepository.findById(shippingMethodId)
-                .orElse(getDefaultShippingMethod());
+                .orElseGet(this::getDefaultShippingMethod);
 
-        // Calculate fee based on base fee and weight
-        BigDecimal baseFee = method.getBaseFee();
+        BigDecimal baseFee = method.getBaseFee() != null ? method.getBaseFee() : DEFAULT_SHIPPING_FEE;
+        log.debug("Base fee for shipping_method_id {}: {}", shippingMethodId, baseFee);
 
-        // Add extra fee based on weight if provided
-        if (totalWeight != null && totalWeight > 0) {
+        if (totalWeight != null && totalWeight > 0 && method.getExtraFeePerKg() != null) {
             BigDecimal extraFee = method.getExtraFeePerKg().multiply(BigDecimal.valueOf(totalWeight));
-            return baseFee.add(extraFee);
+            BigDecimal totalFee = baseFee.add(extraFee);
+            log.debug("Extra fee for weight {}: {}, total shipping fee: {}", totalWeight, extraFee, totalFee);
+            return totalFee;
         }
 
+        log.debug("Returning base fee for shipping_method_id {}: {}", shippingMethodId, baseFee);
         return baseFee;
     }
 
-    /**
-     * Estimate shipping for cart items
-     */
     @Transactional(readOnly = true)
     public ShippingEstimateDTO estimateShipping(BigDecimal orderTotal, Long shippingMethodId, Double totalWeight) {
         ShippingMethod method = shippingMethodRepository.findById(shippingMethodId)
-                .orElse(getDefaultShippingMethod());
+                .orElseGet(this::getDefaultShippingMethod);
 
         BigDecimal shippingFee = calculateShippingFee(orderTotal, shippingMethodId, totalWeight);
 
@@ -151,9 +122,6 @@ public class ShippingService {
                 .build();
     }
 
-    /**
-     * Apply shipping method to order
-     */
     @Transactional
     public Order applyShippingToOrder(Long orderId, Long shippingMethodId, Double totalWeight) {
         Order order = orderRepository.findById(orderId)
@@ -161,22 +129,14 @@ public class ShippingService {
 
         BigDecimal shippingFee = calculateShippingFee(order.getTotalAmount(), shippingMethodId, totalWeight);
 
-        // Update order with shipping fee
         order.setShippingFee(shippingFee);
-
-        // Update total amount to include shipping
         BigDecimal newTotal = order.getTotalAmount().add(shippingFee);
         order.setTotalAmount(newTotal);
-
-        // Update order
         order.setUpdatedAt(LocalDateTime.now());
 
         return orderRepository.save(order);
     }
 
-    /**
-     * Helper method to get default shipping method
-     */
     private ShippingMethod getDefaultShippingMethod() {
         return shippingMethodRepository.findAll().stream()
                 .findFirst()
