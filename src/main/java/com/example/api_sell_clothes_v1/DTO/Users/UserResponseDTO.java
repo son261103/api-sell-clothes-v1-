@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
 
@@ -25,4 +26,7 @@ public class UserResponseDTO {
     private String fullName;
     private UserStatus status;
     private Set<RoleResponseDTO> roles;
+    private String address;
+    private LocalDate dateOfBirth;
+    private String gender;
 }

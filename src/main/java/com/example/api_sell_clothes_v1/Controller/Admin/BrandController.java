@@ -11,6 +11,9 @@ import com.example.api_sell_clothes_v1.Service.BrandService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -29,9 +32,11 @@ public class BrandController {
 
     @GetMapping("/list")
     @PreAuthorize("hasAuthority('VIEW_BRAND')")
-    public ResponseEntity<List<BrandResponseDTO>> getAllBrands() {
-        List<BrandResponseDTO> brands = brandService.getAllBrands();
-        return ResponseEntity.ok(brands);
+    public ResponseEntity<Page<BrandResponseDTO>> getAllBrands(
+            @PageableDefault(page = 0, size = 10, sort = "brandId") Pageable pageable,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean status) {
+        return ResponseEntity.ok(brandService.getAllBrands(pageable, search, status));
     }
 
     @GetMapping("/list/active")
@@ -84,16 +89,6 @@ public class BrandController {
         }
     }
 
-    @PatchMapping("/status/{id}")
-    @PreAuthorize("hasAuthority('EDIT_BRAND')")
-    public ResponseEntity<ApiResponse> updateBrandStatus(
-            @PathVariable("id") Long brandId,
-            @RequestParam Boolean status) {
-        ApiResponse response = brandService.updateBrandStatus(brandId, status);
-        return response.isSuccess()
-                ? ResponseEntity.ok(response)
-                : ResponseEntity.badRequest().body(response);
-    }
 
     @DeleteMapping("/delete/{id}")
     @PreAuthorize("hasAuthority('DELETE_BRAND')")
@@ -120,10 +115,12 @@ public class BrandController {
         }
     }
 
-//    @GetMapping("/check-name")
-//    public ResponseEntity<ApiResponse> checkBrandName(@RequestParam String name) {
-//        boolean exists = brandService.existsByName(name);
-//        String message = exists ? "Tên thương hiệu đã tồn tại" : "Tên thương hiệu có thể sử dụng";
-//        return ResponseEntity.ok(new ApiResponse(!exists, message));
-//    }
+    @PatchMapping("/status/{id}")
+    @PreAuthorize("hasAuthority('EDIT_BRAND')")
+    public ResponseEntity<ApiResponse> toggleBrandStatus(@PathVariable("id") Long brandId) {
+        ApiResponse response = brandService.toggleBrandStatus(brandId);
+        return response.isSuccess()
+                ? ResponseEntity.ok(response)
+                : ResponseEntity.badRequest().body(response);
+    }
 }

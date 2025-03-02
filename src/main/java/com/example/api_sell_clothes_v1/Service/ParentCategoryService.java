@@ -8,6 +8,8 @@ import com.example.api_sell_clothes_v1.Mapper.CategoryMapper;
 import com.example.api_sell_clothes_v1.Repository.CategoryRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -102,9 +104,35 @@ public class ParentCategoryService {
     }
 
     // Get all parent categories
-    public List<CategoryResponseDTO> getAllParentCategories() {
-        List<Categories> parentCategories = categoryRepository.findAllByParentIdIsNull();
-        return categoryMapper.toDto(parentCategories);
+    public Page<CategoryResponseDTO> getAllParentCategories(
+            Pageable pageable, String search, Boolean status) {
+        Page<Categories> categoriesPage;
+
+        if (search != null && !search.trim().isEmpty()) {
+            if (status != null) {
+                // Search with status filter
+                categoriesPage = categoryRepository
+                        .findByParentIdIsNullAndStatusAndNameContainingIgnoreCase(
+                                status, search.trim(), pageable);
+            } else {
+                // Search without status filter
+                categoriesPage = categoryRepository
+                        .findByParentIdIsNullAndNameContainingIgnoreCase(
+                                search.trim(), pageable);
+            }
+        } else {
+            if (status != null) {
+                // Only status filter
+                categoriesPage = categoryRepository
+                        .findByParentIdIsNullAndStatus(status, pageable);
+            } else {
+                // No filters
+                categoriesPage = categoryRepository
+                        .findByParentIdIsNull(pageable);
+            }
+        }
+
+        return categoriesPage.map(categoryMapper::toDto);
     }
 
     // Get all active parent categories

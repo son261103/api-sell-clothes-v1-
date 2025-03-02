@@ -9,6 +9,8 @@ import com.example.api_sell_clothes_v1.Exceptions.SharedException;
 import com.example.api_sell_clothes_v1.Mapper.CategoryMapper;
 import com.example.api_sell_clothes_v1.Repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -116,7 +118,8 @@ public class SubCategoryService {
     }
 
     // Get all sub-categories of a parent
-    public List<CategoryResponseDTO> getAllSubCategories(Long parentId) {
+    public Page<CategoryResponseDTO> getAllSubCategories(
+            Long parentId, Pageable pageable, String search, Boolean status) {
         // Verify parent exists and is a parent category
         Categories parentCategory = categoryRepository.findById(parentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Parent category not found"));
@@ -125,8 +128,33 @@ public class SubCategoryService {
             throw new IllegalArgumentException("Specified category is not a parent category");
         }
 
-        List<Categories> subCategories = categoryRepository.findAllByParentId(parentId);
-        return categoryMapper.toDto(subCategories);
+        Page<Categories> categoriesPage;
+
+        if (search != null && !search.trim().isEmpty()) {
+            if (status != null) {
+                // Search with status filter
+                categoriesPage = categoryRepository
+                        .findByParentIdAndStatusAndNameContainingIgnoreCase(
+                                parentId, status, search.trim(), pageable);
+            } else {
+                // Search without status filter
+                categoriesPage = categoryRepository
+                        .findByParentIdAndNameContainingIgnoreCase(
+                                parentId, search.trim(), pageable);
+            }
+        } else {
+            if (status != null) {
+                // Only status filter
+                categoriesPage = categoryRepository
+                        .findByParentIdAndStatus(parentId, status, pageable);
+            } else {
+                // No filters
+                categoriesPage = categoryRepository
+                        .findByParentId(parentId, pageable);
+            }
+        }
+
+        return categoriesPage.map(categoryMapper::toDto);
     }
 
     // Get all active sub-categories of a parent

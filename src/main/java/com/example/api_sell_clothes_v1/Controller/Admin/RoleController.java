@@ -4,14 +4,19 @@ import com.example.api_sell_clothes_v1.Constants.ApiPatternConstants;
 import com.example.api_sell_clothes_v1.DTO.Roles.RoleCreateDTO;
 import com.example.api_sell_clothes_v1.DTO.Roles.RoleResponseDTO;
 import com.example.api_sell_clothes_v1.DTO.Roles.RoleUpdateDTO;
+import com.example.api_sell_clothes_v1.Entity.Permissions;
 import com.example.api_sell_clothes_v1.Service.RoleService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping(ApiPatternConstants.API_ROLES)
@@ -21,8 +26,10 @@ public class RoleController {
 
     @GetMapping("/list")
     @PreAuthorize("hasAuthority('VIEW_ROLE')")
-    public ResponseEntity<List<RoleResponseDTO>> getAllRoles() {
-        List<RoleResponseDTO> roles = roleService.getAllRoles();
+    public ResponseEntity<Page<RoleResponseDTO>> getAllRoles(
+            @PageableDefault(page = 0, size = 10, sort = "id") Pageable pageable,
+            @RequestParam(required = false) String search) {
+        Page<RoleResponseDTO> roles = roleService.getAllRoles(pageable, search);
         return ResponseEntity.ok(roles);
     }
 
@@ -69,4 +76,85 @@ public class RoleController {
         RoleResponseDTO role = roleService.getRoleByName(name);
         return ResponseEntity.ok(role);
     }
+
+    /// /////////////////////////// /////////////////////////// /////////////////////////// /////////////////////////// ///////////////////////////
+
+    /**
+     * Add a permission to role
+     */
+    @PostMapping("/{roleId}/permissions/{permissionId}")
+    @PreAuthorize("hasAuthority('EDIT_ROLE')")
+    public ResponseEntity<RoleResponseDTO> addPermissionToRole(
+            @PathVariable Long roleId,
+            @PathVariable Long permissionId) {
+        try {
+            RoleResponseDTO updatedRole = roleService.addPermissionToRole(roleId, permissionId);
+            return ResponseEntity.ok(updatedRole);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error adding permission to role: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Remove a permission from role
+     */
+    @DeleteMapping("/{roleId}/permissions/{permissionId}")
+    @PreAuthorize("hasAuthority('EDIT_ROLE')")
+    public ResponseEntity<RoleResponseDTO> removePermissionFromRole(
+            @PathVariable Long roleId,
+            @PathVariable Long permissionId) {
+        try {
+            RoleResponseDTO updatedRole = roleService.removePermissionFromRole(roleId, permissionId);
+            return ResponseEntity.ok(updatedRole);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error removing permission from role: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update all permissions for a role
+     */
+    @PutMapping("/{roleId}/permissions")
+    @PreAuthorize("hasAuthority('EDIT_ROLE')")
+    public ResponseEntity<RoleResponseDTO> updateRolePermissions(
+            @PathVariable Long roleId,
+            @RequestBody Set<Long> permissionIds) {
+        try {
+            RoleResponseDTO updatedRole = roleService.updateRolePermissions(roleId, permissionIds);
+            return ResponseEntity.ok(updatedRole);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error updating role permissions: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Remove multiple permissions from role
+     */
+    @DeleteMapping("/{roleId}/permissions/bulk")
+    @PreAuthorize("hasAuthority('EDIT_ROLE')")
+    public ResponseEntity<RoleResponseDTO> removeMultiplePermissionsFromRole(
+            @PathVariable Long roleId,
+            @RequestBody Set<Long> permissionIds) {
+        try {
+            RoleResponseDTO updatedRole = roleService.removeMultiplePermissionsFromRole(roleId, permissionIds);
+            return ResponseEntity.ok(updatedRole);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error removing permissions from role: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get all permissions for a role
+     */
+    @GetMapping("/{roleId}/permissions")
+    @PreAuthorize("hasAuthority('VIEW_ROLE')")
+    public ResponseEntity<Set<Permissions>> getRolePermissions(@PathVariable Long roleId) {
+        try {
+            Set<Permissions> permissions = roleService.getRolePermissions(roleId);
+            return ResponseEntity.ok(permissions);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error getting role permissions: " + e.getMessage());
+        }
+    }
+
 }

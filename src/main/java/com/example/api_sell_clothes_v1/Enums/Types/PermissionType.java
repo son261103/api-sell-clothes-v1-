@@ -37,7 +37,7 @@ public enum PermissionType {
     VIEW_BRAND("VIEW_BRAND", "View Brand", "Allows CUSTOMER to view brand details", "Brand Management"),
 
     // Product Management Permissions
-    ADD_PRODUCT("ADD_PRODUCT", "Add Product", "Allows CUSTOMER to add a new product", "Product Management"),
+    CREATE_PRODUCT("CREATE_PRODUCT", "Create Product", "Allows CUSTOMER to add a new product", "Product Management"),
     EDIT_PRODUCT("EDIT_PRODUCT", "Edit Product", "Allows CUSTOMER to edit an existing product", "Product Management"),
     DELETE_PRODUCT("DELETE_PRODUCT", "Delete Product", "Allows CUSTOMER to delete a product", "Product Management"),
     VIEW_PRODUCT("VIEW_PRODUCT", "View Product", "Allows CUSTOMER to view product details", "Product Management"),
@@ -47,13 +47,43 @@ public enum PermissionType {
     EDIT_ORDER("EDIT_ORDER", "Edit Order", "Allows CUSTOMER to edit an existing order", "Order Management"),
     DELETE_ORDER("DELETE_ORDER", "Delete Order", "Allows CUSTOMER to delete an order", "Order Management"),
     VIEW_ORDER("VIEW_ORDER", "View Order", "Allows CUSTOMER to view order details", "Order Management"),
+    MANAGE_ORDER("MANAGE_ORDER", "Manage Order", "Allows ADMIN to manage all aspects of orders", "Order Management"),
+    CANCEL_ORDER("CANCEL_ORDER", "Cancel Order", "Allows USER to cancel their own orders", "Order Management"),
 
+    // Address Management Permissions (User)
+    VIEW_ADDRESS("VIEW_ADDRESS", "View Address", "Allows USER to view their own address details", "Address Management"),
+    CREATE_ADDRESS("CREATE_ADDRESS", "Create Address", "Allows USER to create a new address", "Address Management"),
+    EDIT_ADDRESS("EDIT_ADDRESS", "Edit Address", "Allows USER to edit an existing address", "Address Management"),
+    DELETE_ADDRESS("DELETE_ADDRESS", "Delete Address", "Allows USER to delete an address", "Address Management"),
+    SET_DEFAULT_ADDRESS("SET_DEFAULT_ADDRESS", "Set Default Address", "Allows USER to set an address as default", "Address Management"),
+    VALIDATE_ADDRESS("VALIDATE_ADDRESS", "Validate Address", "Allows USER to validate an address", "Address Management"),
 
     // Review Management Permissions
     CREATE_REVIEW("CREATE_REVIEW", "Create Review", "Allows CUSTOMER to create a review for a product", "Review Management"),
     EDIT_REVIEW("EDIT_REVIEW", "Edit Review", "Allows CUSTOMER to edit a review", "Review Management"),
     DELETE_REVIEW("DELETE_REVIEW", "Delete Review", "Allows CUSTOMER to delete a review", "Review Management"),
-    VIEW_REVIEW("VIEW_REVIEW", "View Review", "Allows CUSTOMER to view product reviews", "Review Management");
+    VIEW_REVIEW("VIEW_REVIEW", "View Review", "Allows CUSTOMER to view product reviews", "Review Management"),
+
+    // Carts Management Permissions
+    VIEW_CART("VIEW_CART", "View Cart", "Allows CUSTOMER to view cart contents and summary", "Cart Management"),
+    EDIT_CART("EDIT_CART", "Edit Cart", "Allows CUSTOMER to add, remove or modify items in cart", "Cart Management"),
+    CHECKOUT_CART("CHECKOUT_CART", "Checkout Cart", "Allows CUSTOMER to proceed to checkout with cart items", "Cart Management"),
+
+    // Payment Method Management Permissions
+    VIEW_PAYMENT_METHOD("VIEW_PAYMENT_METHOD", "View Payment Method", "Allows USER to view available payment methods", "Payment Management"),
+    MANAGE_PAYMENT_METHOD("MANAGE_PAYMENT_METHOD", "Manage Payment Method", "Allows ADMIN to manage payment methods (create, edit, delete)", "Payment Management"),
+
+    // Payment Management Permissions
+    CREATE_PAYMENT("CREATE_PAYMENT", "Create Payment", "Allows USER to initiate a payment for an order", "Payment Management"),
+    VIEW_PAYMENT("VIEW_PAYMENT", "View Payment", "Allows USER to view their payment details", "Payment Management"),
+    MANAGE_PAYMENT("MANAGE_PAYMENT", "Manage Payment", "Allows ADMIN to manage all payment details", "Payment Management"),
+
+    // Payment History Management Permissions
+    VIEW_PAYMENT_HISTORY("VIEW_PAYMENT_HISTORY", "View Payment History", "Allows USER to view their payment history", "Payment Management"),
+    MANAGE_PAYMENT_HISTORY("MANAGE_PAYMENT_HISTORY", "Manage Payment History", "Allows ADMIN to view and manage all payment history", "Payment Management");
+
+
+
 
     private final String codeName;
     private final String name;

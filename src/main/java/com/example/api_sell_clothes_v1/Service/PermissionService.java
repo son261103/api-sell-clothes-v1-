@@ -12,6 +12,8 @@ import com.example.api_sell_clothes_v1.Repository.PermissionRepository;
 import com.example.api_sell_clothes_v1.Repository.RoleRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,9 +31,18 @@ public class PermissionService {
     private final RoleRepository roleRepository;
 
     @Transactional(readOnly = true)
-    public List<PermissionResponseDTO> getAllPermissions() {
-        List<Permissions> permissions = permissionRepository.findAll();
-        return permissionMapper.toDto(permissions);
+    public Page<PermissionResponseDTO> getAllPermissions(Pageable pageable, String search) {
+        Page<Permissions> permissionsPage;
+
+        if (search != null && !search.trim().isEmpty()) {
+            // Search by name, codeName, or groupName
+            permissionsPage = permissionRepository.findBySearchCriteria(search.trim(), pageable);
+        } else {
+            // No search filter
+            permissionsPage = permissionRepository.findAll(pageable);
+        }
+
+        return permissionsPage.map(permissionMapper::toDto);
     }
 
     @Transactional(readOnly = true)

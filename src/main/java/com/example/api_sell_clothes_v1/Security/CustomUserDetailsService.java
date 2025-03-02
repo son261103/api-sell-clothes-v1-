@@ -29,12 +29,13 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         // Kiểm tra status của user
         switch (user.getStatus()) {
-            case UserStatus.PENDING:
-                throw new RuntimeException("Account has not been activated");
-            case UserStatus.BANNED:
+//            case UserStatus.PENDING:
+//                throw new RuntimeException("Account has not been activated");
+            case UserStatus.BANNER:
                 throw new RuntimeException("account has been banned");
             case UserStatus.LOCKED:
                 throw new RuntimeException("account has been locked");
+            case UserStatus.PENDING:
             case ACTIVE:
                 break;
             default:

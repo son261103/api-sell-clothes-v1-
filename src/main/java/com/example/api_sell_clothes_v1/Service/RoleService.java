@@ -10,6 +10,9 @@ import com.example.api_sell_clothes_v1.Repository.PermissionRepository;
 import com.example.api_sell_clothes_v1.Repository.RoleRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RoleService {
@@ -25,9 +29,18 @@ public class RoleService {
     private final RoleMapper roleMapper;
 
     @Transactional(readOnly = true)
-    public List<RoleResponseDTO> getAllRoles() {
-        List<Roles> roles = roleRepository.findAll();
-        return roleMapper.toDto(roles);
+    public Page<RoleResponseDTO> getAllRoles(Pageable pageable, String search) {
+        Page<Roles> rolesPage;
+
+        if (search != null && !search.trim().isEmpty()) {
+            // Search by name or description
+            rolesPage = roleRepository.findBySearchCriteria(search.trim(), pageable);
+        } else {
+            // No search filter
+            rolesPage = roleRepository.findAll(pageable);
+        }
+
+        return rolesPage.map(roleMapper::toDto);
     }
 
     @Transactional(readOnly = true)
@@ -112,5 +125,99 @@ public class RoleService {
             return ROLE_PREFIX + normalizedRoleName;
         }
         return normalizedRoleName;
+    }
+
+    /// /////////////////////////// /////////////////////////// /////////////////////////// /////////////////////////// ///////////////////////////
+
+    /**
+     * Add a permission to role
+     */
+    @Transactional
+    public RoleResponseDTO addPermissionToRole(Long roleId, Long permissionId) {
+        Roles role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new EntityNotFoundException("Role not found"));
+        Permissions permission = permissionRepository.findById(permissionId)
+                .orElseThrow(() -> new EntityNotFoundException("Permission not found"));
+
+        role.getPermissions().add(permission);
+        Roles updatedRole = roleRepository.save(role);
+        log.info("Added permission {} to role {}", permission.getName(), roleId);
+
+        return roleMapper.toDto(updatedRole);
+    }
+
+    /**
+     * Remove a permission from role
+     */
+    @Transactional
+    public RoleResponseDTO removePermissionFromRole(Long roleId, Long permissionId) {
+        Roles role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new EntityNotFoundException("Role not found"));
+        Permissions permission = permissionRepository.findById(permissionId)
+                .orElseThrow(() -> new EntityNotFoundException("Permission not found"));
+
+        if (!role.getPermissions().contains(permission)) {
+            throw new IllegalArgumentException("Role does not have this permission");
+        }
+
+        role.getPermissions().remove(permission);
+        Roles updatedRole = roleRepository.save(role);
+        log.info("Removed permission {} from role {}", permission.getName(), roleId);
+
+        return roleMapper.toDto(updatedRole);
+    }
+
+    /**
+     * Update all permissions for a role
+     */
+    @Transactional
+    public RoleResponseDTO updateRolePermissions(Long roleId, Set<Long> permissionIds) {
+        Roles role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new EntityNotFoundException("Role not found"));
+
+        Set<Permissions> newPermissions = new HashSet<>();
+        for (Long permissionId : permissionIds) {
+            Permissions permission = permissionRepository.findById(permissionId)
+                    .orElseThrow(() -> new EntityNotFoundException("Permission not found with id: " + permissionId));
+            newPermissions.add(permission);
+        }
+
+        role.setPermissions(newPermissions);
+        Roles updatedRole = roleRepository.save(role);
+        log.info("Updated permissions for role {}", roleId);
+
+        return roleMapper.toDto(updatedRole);
+    }
+
+    /**
+     * Remove multiple permissions from role
+     */
+    @Transactional
+    public RoleResponseDTO removeMultiplePermissionsFromRole(Long roleId, Set<Long> permissionIds) {
+        Roles role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new EntityNotFoundException("Role not found"));
+
+        Set<Permissions> permissionsToRemove = new HashSet<>();
+        for (Long permissionId : permissionIds) {
+            Permissions permission = permissionRepository.findById(permissionId)
+                    .orElseThrow(() -> new EntityNotFoundException("Permission not found with id: " + permissionId));
+            permissionsToRemove.add(permission);
+        }
+
+        role.getPermissions().removeAll(permissionsToRemove);
+        Roles updatedRole = roleRepository.save(role);
+        log.info("Removed {} permissions from role {}", permissionIds.size(), roleId);
+
+        return roleMapper.toDto(updatedRole);
+    }
+
+    /**
+     * Get all permissions for a role
+     */
+    @Transactional(readOnly = true)
+    public Set<Permissions> getRolePermissions(Long roleId) {
+        Roles role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new EntityNotFoundException("Role not found"));
+        return role.getPermissions();
     }
 }

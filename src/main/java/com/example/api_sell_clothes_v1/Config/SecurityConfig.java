@@ -67,10 +67,20 @@ public class SecurityConfig {
     }
 
     /**
-     * Configure endpoint permissions for Order management
+     * Configure endpoint permissions for Product Images management
      */
-    private void configureOrderEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
-        EndpointPermissionConstants.ORDER_ENDPOINTS.forEach((endpoint, permission) ->
+    private void configureProductImageEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.PRODUCT_IMAGE_ENDPOINTS.forEach((endpoint, permission) ->
+                auth.requestMatchers(endpoint).hasAuthority(permission)
+        );
+    }
+
+    /**
+     * Configure endpoint permissions for Product variant management
+     */
+
+    private void configureProductVariantEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.PRODUCT_VARIANT_ENDPOINTS.forEach((endpoint, permission) ->
                 auth.requestMatchers(endpoint).hasAuthority(permission)
         );
     }
@@ -102,6 +112,92 @@ public class SecurityConfig {
         );
     }
 
+    private void configureCartItemEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.CART_ITEM_ENDPOINTS.forEach((endpoint, permission) -> {
+            if (permission != null) {
+                auth.requestMatchers(endpoint).hasAuthority(permission);
+            }
+        });
+    }
+
+    private void configureCartEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.CART_ENDPOINTS.forEach((endpoint, permission) -> {
+            if (permission != null) {
+                auth.requestMatchers(endpoint).hasAuthority(permission);
+            }
+        });
+    }
+
+
+    /**
+     * Configure endpoint permissions for Order management
+     */
+    private void configureOrderEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.ORDER_ENDPOINTS.forEach((endpoint, permission) -> {
+            if (permission != null) { // Thêm kiểm tra null
+                auth.requestMatchers(endpoint).hasAuthority(permission);
+            }
+        });
+    }
+
+    /**
+     * Configure endpoint permissions for Order Items management
+     */
+    private void configureOrderItemEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.ORDER_ITEM_ENDPOINTS.forEach((endpoint, permission) -> {
+            if (permission != null) { // Thêm kiểm tra null
+                auth.requestMatchers(endpoint).hasAuthority(permission);
+            }
+        });
+    }
+
+    /**
+     * Configure endpoint permissions for User Address management
+     */
+    private void configureUserAddressEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.USER_ADDRESS_ENDPOINTS.forEach((endpoint, permission) -> {
+            if (permission != null) { // Thêm kiểm tra null
+                auth.requestMatchers(endpoint).hasAuthority(permission);
+            }
+        });
+    }
+
+
+    /**
+     * Configure endpoint permissions for Payment Method management
+     */
+    private void configurePaymentMethodEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.PAYMENT_METHOD_ENDPOINTS.forEach((endpoint, permission) -> {
+            if (permission != null) {
+                auth.requestMatchers(endpoint).hasAuthority(permission);
+            }
+        });
+    }
+
+    /**
+     * Configure endpoint permissions for Payment management
+     */
+    private void configurePaymentEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.PAYMENT_ENDPOINTS.forEach((endpoint, permission) -> {
+            if (permission != null) {
+                auth.requestMatchers(endpoint).hasAuthority(permission);
+            }
+        });
+    }
+
+    /**
+     * Configure endpoint permissions for Payment History management
+     */
+    private void configurePaymentHistoryEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.PAYMENT_HISTORY_ENDPOINTS.forEach((endpoint, permission) -> {
+            if (permission != null) {
+                auth.requestMatchers(endpoint).hasAuthority(permission);
+            }
+        });
+    }
+
+
+
     /**
      * Configure basic security settings
      */
@@ -130,12 +226,24 @@ public class SecurityConfig {
                     configurePermissionEndpoints(auth);
                     configureRoleEndpoints(auth);
                     configureProductEndpoints(auth);
+                    configureProductVariantEndpoints(auth);
+                    configureProductImageEndpoints(auth);
                     configureOrderEndpoints(auth);
                     configureUserEndpoints(auth);
                     configureCategoryEndpoints(auth);
                     configureReviewEndpoints(auth);
+                    configureCartItemEndpoints(auth);
+                    configureCartEndpoints(auth);
+                    configureOrderItemEndpoints(auth);     // Thêm mới
+                    configureUserAddressEndpoints(auth);   // Thêm mới
+                    // Configure Payment Method endpoints
+                    configurePaymentMethodEndpoints(auth);
+                    // Configure Payment endpoints
+                    configurePaymentEndpoints(auth);
 
 
+                    // Configure Payment History endpoints
+                    configurePaymentHistoryEndpoints(auth);
                     // Any other request needs authentication
                     auth.anyRequest().authenticated();
                 })
@@ -174,25 +282,25 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Set allowed origins
-        configuration.setAllowedOrigins(Arrays.asList(CorsConstants.ALLOWED_ORIGINS));
+        // Cho phép tất cả các origin từ danh sách cấu hình
+        configuration.setAllowedOriginPatterns(List.of(CorsConstants.ALLOWED_ORIGINS));
 
-        // Set allowed methods
-        configuration.setAllowedMethods(Arrays.asList(CorsConstants.ALLOWED_METHODS));
+        // Cho phép tất cả các phương thức HTTP được cấu hình
+        configuration.setAllowedMethods(List.of(CorsConstants.ALLOWED_METHODS));
 
-        // Set allowed headers
-        configuration.setAllowedHeaders(Arrays.asList(CorsConstants.ALLOWED_HEADERS));
+        // Cho phép tất cả các header được cấu hình
+        configuration.setAllowedHeaders(List.of(CorsConstants.ALLOWED_HEADERS));
 
-        // Allow credentials
+        // Cho phép gửi credentials (cookies, Authorization headers,...)
         configuration.setAllowCredentials(true);
 
-        // Set exposed headers
+        // Thiết lập các header mà client có thể đọc từ response
         configuration.setExposedHeaders(List.of(JwtConstants.HEADER_STRING));
 
-        // Set max age
+        // Thời gian cache CORS (giảm request preflight)
         configuration.setMaxAge(CorsConstants.MAX_AGE);
 
-        // Create URL based CORS configuration source
+        // Đăng ký cấu hình CORS với tất cả các URL
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
 

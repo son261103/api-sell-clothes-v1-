@@ -2,12 +2,13 @@ package com.example.api_sell_clothes_v1.Security;
 
 import com.example.api_sell_clothes_v1.Entity.Roles;
 import com.example.api_sell_clothes_v1.Entity.Users;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
 import lombok.Getter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,8 @@ import java.util.stream.Collectors;
 @Component
 @Getter
 public class JwtService {
+    private static final Logger logger = LoggerFactory.getLogger(JwtService.class);
+
     @Value("${jwt.secret-key}")
     private String secretKey;
 
@@ -57,6 +60,7 @@ public class JwtService {
             claims.put("userId", user.getUserId());
             claims.put("email", user.getEmail());
             claims.put("fullName", user.getFullName());
+            claims.put("status", user.getStatus());
         }
 
         return buildToken(claims, userDetails, jwtExpiration);
@@ -74,10 +78,14 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        try {
+            final String username = extractUsername(token);
+            return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        } catch (JwtException e) {
+            logger.error("JWT token validation failed: {}", e.getMessage());
+            return false;
+        }
     }
-
 
     private boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
@@ -92,48 +100,103 @@ public class JwtService {
         return claimsResolver.apply(claims);
     }
 
-    private Claims extractAllClaims(String token) {
-        return Jwts
-                .parser()
-                .setSigningKey(getSignInKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+    public Claims extractAllClaims(String token) {
+        try {
+            if (token == null || token.trim().isEmpty()) {
+                throw new JwtException("Empty or null JWT token");
+            }
+
+            // Clean the token
+            token = token.trim().replaceAll("[\\p{Cc}\\p{Cf}\\p{Co}\\p{Cn}]", "");
+
+            return Jwts
+                    .parser()
+                    .setSigningKey(getSignInKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (MalformedJwtException e) {
+            logger.error("Malformed JWT token: {}", e.getMessage());
+            throw new JwtException("Malformed JWT token", e);
+        } catch (ExpiredJwtException e) {
+            logger.error("JWT token has expired: {}", e.getMessage());
+            throw new JwtException("JWT token has expired", e);
+        } catch (UnsupportedJwtException e) {
+            logger.error("Unsupported JWT token: {}", e.getMessage());
+            throw new JwtException("Unsupported JWT token", e);
+        } catch (SignatureException e) {
+            logger.error("Invalid JWT signature: {}", e.getMessage());
+            throw new JwtException("Invalid JWT signature", e);
+        } catch (IllegalArgumentException e) {
+            logger.error("JWT token compact of handler are invalid: {}", e.getMessage());
+            throw new JwtException("JWT token compact of handler are invalid", e);
+        } catch (Exception e) {
+            logger.error("Invalid JWT token: {}", e.getMessage());
+            throw new JwtException("Invalid JWT token", e);
+        }
     }
 
     private Key getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
-        return Keys.hmacShaKeyFor(keyBytes);
+        try {
+            byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+            return Keys.hmacShaKeyFor(keyBytes);
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid secret key encoding: {}", e.getMessage());
+            throw new JwtException("Invalid secret key encoding", e);
+        }
     }
 
-    // Methods to extract additional claims
+    // Methods to extract additional claims with error handling
     public Set<String> extractRoles(String token) {
-        Claims claims = extractAllClaims(token);
-        List<String> roles = claims.get("roles", List.class);
-        return roles != null ? new HashSet<>(roles) : new HashSet<>();
+        try {
+            Claims claims = extractAllClaims(token);
+            List<String> roles = claims.get("roles", List.class);
+            return roles != null ? new HashSet<>(roles) : new HashSet<>();
+        } catch (Exception e) {
+            logger.error("Error extracting roles from token: {}", e.getMessage());
+            return new HashSet<>();
+        }
     }
 
     public Set<String> extractPermissions(String token) {
-        Claims claims = extractAllClaims(token);
-        List<String> permissions = claims.get("permissions", List.class);
-        return permissions != null ? new HashSet<>(permissions) : new HashSet<>();
+        try {
+            Claims claims = extractAllClaims(token);
+            List<String> permissions = claims.get("permissions", List.class);
+            return permissions != null ? new HashSet<>(permissions) : new HashSet<>();
+        } catch (Exception e) {
+            logger.error("Error extracting permissions from token: {}", e.getMessage());
+            return new HashSet<>();
+        }
     }
 
     public Long extractUserId(String token) {
-        Claims claims = extractAllClaims(token);
-        Integer userId = claims.get("userId", Integer.class);
-        return userId != null ? userId.longValue() : null;
+        try {
+            Claims claims = extractAllClaims(token);
+            Integer userId = claims.get("userId", Integer.class);
+            return userId != null ? userId.longValue() : null;
+        } catch (Exception e) {
+            logger.error("Error extracting userId from token: {}", e.getMessage());
+            return null;
+        }
     }
 
     public String extractEmail(String token) {
-        Claims claims = extractAllClaims(token);
-        return claims.get("email", String.class);
+        try {
+            Claims claims = extractAllClaims(token);
+            return claims.get("email", String.class);
+        } catch (Exception e) {
+            logger.error("Error extracting email from token: {}", e.getMessage());
+            return null;
+        }
     }
 
     public String extractFullName(String token) {
-        Claims claims = extractAllClaims(token);
-        return claims.get("fullName", String.class);
+        try {
+            Claims claims = extractAllClaims(token);
+            return claims.get("fullName", String.class);
+        } catch (Exception e) {
+            logger.error("Error extracting fullName from token: {}", e.getMessage());
+            return null;
+        }
     }
-
-
 }

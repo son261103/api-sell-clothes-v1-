@@ -11,6 +11,9 @@ import com.example.api_sell_clothes_v1.Service.UserService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping(ApiPatternConstants.API_USERS)
@@ -28,11 +31,14 @@ public class UserController {
     private final UserService userService;
     private final ObjectMapper objectMapper;
 
-    // Basic CRUD operations without file upload remain unchanged
+    // Basic CRUD operations
     @GetMapping("/list")
     @PreAuthorize("hasAuthority('VIEW_CUSTOMER')")
-    public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
-        List<UserResponseDTO> users = userService.getAllUsers();
+    public ResponseEntity<Page<UserResponseDTO>> getAllUsers(
+            @PageableDefault(page = 0, size = 10, sort = "userId") Pageable pageable,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) UserStatus status) {
+        Page<UserResponseDTO> users = userService.getAllUsers(pageable, search, status);
         return ResponseEntity.ok(users);
     }
 
@@ -44,39 +50,78 @@ public class UserController {
     }
 
     /**
-     * Create new user with optional avatar
-     * Accepts multipart form data with JSON string for user data
+     * Create new user
      */
-    @PostMapping(value = "/create", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    @PostMapping("/create")
     @PreAuthorize("hasAuthority('CREATE_CUSTOMER')")
-    public ResponseEntity<UserResponseDTO> createUser(
-            @RequestParam("user") String userCreateDTOString,
-            @RequestParam(value = "avatar", required = false) MultipartFile avatarFile) {
+    public ResponseEntity<UserResponseDTO> createUser(@Valid @RequestBody UserCreateDTO createDTO) {
         try {
-            UserCreateDTO createDTO = objectMapper.readValue(userCreateDTOString, UserCreateDTO.class);
-            UserResponseDTO createdUser = userService.createUser(createDTO, avatarFile);
+            UserResponseDTO createdUser = userService.createUser(createDTO);
             return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Lỗi khi xử lý dữ liệu người dùng: " + e.getMessage());
+            throw new IllegalArgumentException("Lỗi khi tạo người dùng: " + e.getMessage());
         }
     }
 
     /**
-     * Update user with optional avatar
-     * Accepts multipart form data with JSON string for user data
+     * Update user information
      */
-    @PutMapping(value = "/edit/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    @PutMapping("/edit/{id}")
     @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
     public ResponseEntity<UserResponseDTO> updateUser(
             @PathVariable Long id,
-            @RequestParam("user") String userUpdateDTOString,
-            @RequestParam(value = "avatar", required = false) MultipartFile avatarFile) {
+            @Valid @RequestBody UserUpdateDTO updateDTO) {
         try {
-            UserUpdateDTO updateDTO = objectMapper.readValue(userUpdateDTOString, UserUpdateDTO.class);
-            UserResponseDTO updatedUser = userService.updateUser(id, updateDTO, avatarFile);
+            UserResponseDTO updatedUser = userService.updateUser(id, updateDTO);
             return ResponseEntity.ok(updatedUser);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Lỗi khi xử lý dữ liệu cập nhật: " + e.getMessage());
+            throw new IllegalArgumentException("Lỗi khi cập nhật người dùng: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Upload new avatar
+     */
+    @PostMapping(value = "/avatar/{userId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
+    public ResponseEntity<UserResponseDTO> uploadAvatar(
+            @PathVariable Long userId,
+            @RequestParam("avatar") MultipartFile avatarFile) {
+        try {
+            UserResponseDTO response = userService.uploadAvatar(userId, avatarFile);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Lỗi khi tải lên ảnh đại diện: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update existing avatar
+     */
+    @PutMapping(value = "/avatar/{userId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
+    public ResponseEntity<UserResponseDTO> updateAvatar(
+            @PathVariable Long userId,
+            @RequestParam("avatar") MultipartFile avatarFile) {
+        try {
+            UserResponseDTO response = userService.updateAvatar(userId, avatarFile);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Lỗi khi cập nhật ảnh đại diện: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Delete avatar
+     */
+    @DeleteMapping("/avatar/{userId}")
+    @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
+    public ResponseEntity<UserResponseDTO> deleteAvatar(@PathVariable Long userId) {
+        try {
+            UserResponseDTO response = userService.deleteAvatar(userId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Lỗi khi xóa ảnh đại diện: " + e.getMessage());
         }
     }
 
@@ -92,12 +137,13 @@ public class UserController {
     public ResponseEntity<ApiResponse> updateUserStatus(
             @PathVariable Long id,
             @Valid @RequestBody UserStatusUpdateDTO statusUpdateDTO) {
-        ApiResponse response = userService.updateUserStatus(id, Integer.parseInt(statusUpdateDTO.getStatus()));
+        ApiResponse response = userService.updateUserStatus(id, UserStatus.valueOf(statusUpdateDTO.getStatus().toUpperCase()));
         return response.isSuccess()
                 ? ResponseEntity.ok(response)
                 : ResponseEntity.badRequest().body(response);
     }
 
+    // Các endpoints khác giữ nguyên
     @GetMapping("/username/{username}")
     @PreAuthorize("hasAuthority('VIEW_CUSTOMER')")
     public ResponseEntity<UserResponseDTO> getUserByUsername(@PathVariable String username) {
@@ -140,5 +186,70 @@ public class UserController {
         boolean exists = userService.existsByEmail(email);
         String message = exists ? "Email already exists" : "Email available";
         return ResponseEntity.ok(new ApiResponse(!exists, message));
+    }
+
+    /// /////////////////////////// /////////////////////////// /////////////////////////// /////////////////////////// ///////////////////////////
+    /**
+     * Add a role to user
+     */
+    @PostMapping("/{userId}/roles/{roleId}")
+    @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
+    public ResponseEntity<UserResponseDTO> addRoleToUser(
+            @PathVariable Long userId,
+            @PathVariable Long roleId) {
+        try {
+            UserResponseDTO updatedUser = userService.addRoleToUser(userId, roleId);
+            return ResponseEntity.ok(updatedUser);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error adding role to user: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Remove a role from user
+     */
+    @DeleteMapping("/{userId}/roles/{roleId}")
+    @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
+    public ResponseEntity<UserResponseDTO> removeRoleFromUser(
+            @PathVariable Long userId,
+            @PathVariable Long roleId) {
+        try {
+            UserResponseDTO updatedUser = userService.removeRoleFromUser(userId, roleId);
+            return ResponseEntity.ok(updatedUser);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error removing role from user: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update all roles for a user
+     */
+    @PutMapping("/{userId}/roles")
+    @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
+    public ResponseEntity<UserResponseDTO> updateUserRoles(
+            @PathVariable Long userId,
+            @RequestBody Set<Long> roleIds) {
+        try {
+            UserResponseDTO updatedUser = userService.updateUserRoles(userId, roleIds);
+            return ResponseEntity.ok(updatedUser);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error updating user roles: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Remove multiple roles from user
+     */
+    @DeleteMapping("/{userId}/roles/bulk")
+    @PreAuthorize("hasAuthority('EDIT_CUSTOMER')")
+    public ResponseEntity<UserResponseDTO> removeMultipleRolesFromUser(
+            @PathVariable Long userId,
+            @RequestBody Set<Long> roleIds) {
+        try {
+            UserResponseDTO updatedUser = userService.removeMultipleRolesFromUser(userId, roleIds);
+            return ResponseEntity.ok(updatedUser);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error removing roles from user: " + e.getMessage());
+        }
     }
 }

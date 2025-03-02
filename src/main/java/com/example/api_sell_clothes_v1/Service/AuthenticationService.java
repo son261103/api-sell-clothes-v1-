@@ -13,6 +13,7 @@ import com.example.api_sell_clothes_v1.Repository.RoleRepository;
 import com.example.api_sell_clothes_v1.Repository.UserRepository;
 import com.example.api_sell_clothes_v1.Security.CustomUserDetails;
 import com.example.api_sell_clothes_v1.Security.JwtService;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,15 +57,16 @@ public class AuthenticationService {
 
             // Kiểm tra status và trả về thông báo cụ thể
             switch (user.getStatus()) {
-                case UserStatus.PENDING:
-                    log.error("User account is inactive: {}", request.getLoginId());
-                    throw new UserStatusException("Account has not been activated. Please check your email to activate your account.");
-                case UserStatus.BANNED:
+//                case UserStatus.PENDING:
+//                    log.error("User account is inactive: {}", request.getLoginId());
+//                    throw new UserStatusException("Account has not been activated. Please check your email to activate your account.");
+                case UserStatus.BANNER:
                     log.error("User account is banned: {}", request.getLoginId());
                     throw new UserStatusException("The account has been permanently locked. Please contact admin for more details.");
                 case UserStatus.LOCKED:
                     log.error("User account is locked: {}", request.getLoginId());
                     throw new UserStatusException("Account temporarily locked. Please try again later or contact admin.");
+                case UserStatus.PENDING:
                 case ACTIVE:
                     break;
                 default:
@@ -236,7 +238,7 @@ public class AuthenticationService {
                 throw new RuntimeException("User is already verified");
             }
 
-            if (user.getStatus() == UserStatus.BANNED) {
+            if (user.getStatus() == UserStatus.BANNER) {
                 throw new RuntimeException("account has been banned");
             }
 
@@ -276,6 +278,44 @@ public class AuthenticationService {
         }
     }
 
+//    public TokenResponseDTO verifyNewAccess(RefreshTokenDTO refreshTokenDTO) {
+//        log.info("Processing refresh token request");
+//        try {
+//            // 1. Verify refresh token
+//            if (!refreshTokenService.verifyRefreshTokenForNewAccess(refreshTokenDTO.getRefreshToken())) {
+//                throw new RuntimeException("Invalid refresh token");
+//            }
+//
+//            // 2. Lấy user từ refresh token
+//            RefreshTokens storedToken = refreshTokenRepository.findByRefreshToken(refreshTokenDTO.getRefreshToken()).get();
+//            Users user = storedToken.getUser();
+//
+//            // 3. Tạo custom user details
+//            CustomUserDetails userDetails = new CustomUserDetails(user, authorityService.getAuthorities(user));
+//
+//            // 4. Tạo access token mới
+//            String newAccessToken = jwtService.generateToken(userDetails);
+//
+//            // 5. Build response với refresh token cũ
+//            return TokenResponseDTO.builder()
+//                    .accessToken(newAccessToken)
+//                    .refreshToken(refreshTokenDTO.getRefreshToken()) // Giữ nguyên refresh token cũ
+//                    .tokenType("Bearer")
+//                    .expiresIn(jwtService.getJwtExpiration())
+//                    .username(user.getUsername())
+//                    .email(user.getEmail())
+//                    .userId(user.getUserId())
+//                    .fullName(user.getFullName())
+//                    .roles(jwtService.extractRoles(newAccessToken))
+//                    .permissions(jwtService.extractPermissions(newAccessToken))
+//                    .build();
+//
+//        } catch (Exception e) {
+//            log.error("Failed to refresh token: {}", e.getMessage());
+//            throw new RuntimeException("Failed to refresh token: " + e.getMessage());
+//        }
+//    }
+
     public TokenResponseDTO verifyNewAccess(RefreshTokenDTO refreshTokenDTO) {
         log.info("Processing refresh token request");
         try {
@@ -285,16 +325,22 @@ public class AuthenticationService {
             }
 
             // 2. Lấy user từ refresh token
-            RefreshTokens storedToken = refreshTokenRepository.findByRefreshToken(refreshTokenDTO.getRefreshToken()).get();
+            RefreshTokens storedToken = refreshTokenRepository.findByRefreshToken(refreshTokenDTO.getRefreshToken())
+                    .orElseThrow(() -> new RuntimeException("Refresh token not found"));
             Users user = storedToken.getUser();
 
-            // 3. Tạo custom user details
+            // 3. Kiểm tra trạng thái user
+            if (user.getStatus().equals(UserStatus.BANNER)) {
+                throw new UserStatusException("User account is banned");
+            }
+
+            // 4. Tạo custom user details
             CustomUserDetails userDetails = new CustomUserDetails(user, authorityService.getAuthorities(user));
 
-            // 4. Tạo access token mới
+            // 5. Tạo access token mới
             String newAccessToken = jwtService.generateToken(userDetails);
 
-            // 5. Build response với refresh token cũ
+            // 6. Build response với refresh token cũ
             return TokenResponseDTO.builder()
                     .accessToken(newAccessToken)
                     .refreshToken(refreshTokenDTO.getRefreshToken()) // Giữ nguyên refresh token cũ
@@ -309,11 +355,10 @@ public class AuthenticationService {
                     .build();
 
         } catch (Exception e) {
-            log.error("Failed to refresh token: {}", e.getMessage());
+            log.warn("Failed to refresh token: {}", e.getMessage());
             throw new RuntimeException("Failed to refresh token: " + e.getMessage());
         }
     }
-
 
     public TokenResponseDTO refreshToken(RefreshTokenDTO refreshTokenDTO) {
         log.info("Processing refresh token request");
@@ -441,5 +486,123 @@ public class AuthenticationService {
             log.error("Logout failed: {}", e.getMessage());
             throw new RuntimeException("Logout failed: " + e.getMessage());
         }
+    }
+
+// ------------------------------------------------------------------------
+    /**
+     * Change password without OTP
+     */
+    @Transactional
+    public ApiResponse changePassword(Long userId, ChangePasswordDTO changePasswordDTO) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        // Validate old password
+        if (!passwordEncoder.matches(changePasswordDTO.getOldPassword(), user.getPasswordHash())) {
+            throw new BadCredentialsException("Invalid old password");
+        }
+
+        // Validate new password and confirm password match
+        if (!changePasswordDTO.getNewPassword().equals(changePasswordDTO.getConfirmPassword())) {
+            throw new IllegalArgumentException("New password and confirm password do not match");
+        }
+
+        // Update password
+        user.setPasswordHash(passwordEncoder.encode(changePasswordDTO.getNewPassword()));
+        userRepository.save(user);
+
+        log.info("Password changed successfully for user ID: {}", userId);
+        return new ApiResponse(true, "Password changed successfully");
+    }
+
+    /**
+     * Change password with OTP verification
+     */
+    @Transactional
+    public ApiResponse changePasswordWithOtp(Long userId, ChangePasswordWithOtpDTO changePasswordDTO) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        // Validate old password
+        if (!passwordEncoder.matches(changePasswordDTO.getOldPassword(), user.getPasswordHash())) {
+            throw new BadCredentialsException("Invalid old password");
+        }
+
+        // Validate OTP
+        String cachedOtp = otpService.getOtpFromCache(changePasswordDTO.getLoginId());
+        if (cachedOtp == null || !cachedOtp.equals(changePasswordDTO.getOtp())) {
+            throw new IllegalArgumentException("Invalid or expired OTP");
+        }
+
+        // Validate new password and confirm password match
+        if (!changePasswordDTO.getNewPassword().equals(changePasswordDTO.getConfirmPassword())) {
+            throw new IllegalArgumentException("New password and confirm password do not match");
+        }
+
+        // Update password
+        user.setPasswordHash(passwordEncoder.encode(changePasswordDTO.getNewPassword()));
+        userRepository.save(user);
+
+        // Remove OTP from cache
+        otpService.removeOtpFromCache(changePasswordDTO.getLoginId());
+
+        log.info("Password changed successfully with OTP for user ID: {}", userId);
+        return new ApiResponse(true, "Password changed successfully");
+    }
+
+    /**
+     * Get user profile
+     */
+    public UserProfileDTO getUserProfile(Long userId) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        Set<String> roles = user.getRoles().stream()
+                .map(Roles::getName)
+                .collect(Collectors.toSet());
+
+        Set<String> permissions = user.getRoles().stream()
+                .flatMap(role -> role.getPermissions().stream())
+                .map(Permissions::getCodeName)
+                .collect(Collectors.toSet());
+
+        return UserProfileDTO.builder()
+                .userId(user.getUserId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .phone(user.getPhone())
+                .avatar(user.getAvatar())
+                .status(user.getStatus())
+                .createdAt(user.getCreatedAt())
+                .lastLoginAt(user.getLastLoginAt())
+                .roles(roles)
+                .permissions(permissions)
+                .address(user.getAddress())
+                .dateOfBirth(user.getDateOfBirth())
+                .gender(user.getGender())
+                .build();
+    }
+
+    /**
+     * Update user profile
+     */
+    @Transactional
+    public UserProfileDTO updateUserProfile(Long userId, UserProfileDTO profileDTO) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        // Update user fields
+        user.setFullName(profileDTO.getFullName());
+        user.setPhone(profileDTO.getPhone());
+        user.setAddress(profileDTO.getAddress());
+        user.setDateOfBirth(profileDTO.getDateOfBirth());
+        user.setGender(profileDTO.getGender());
+
+        // Save updated user
+        Users updatedUser = userRepository.save(user);
+        log.info("Profile updated for user ID: {}", userId);
+
+        return getUserProfile(updatedUser.getUserId());
     }
 }
