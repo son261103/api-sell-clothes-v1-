@@ -77,13 +77,29 @@ public class Order {
         payment.setOrder(this);
     }
 
+    // Thêm các trường mới để hỗ trợ OTP xác nhận giao hàng
+    @Column
+    private String deliveryOtp;
+
+    @Column
+    private LocalDateTime deliveryOtpExpiry;
+
+    @Column
+    private String deliveryNote;
+
+    // Hỗ trợ cho quản lý trạng thái từ chối nhận hàng
+    @Column
+    private String rejectionReason;
+
+
     public enum OrderStatus {
         PENDING("Chờ xác nhận"),
         CONFIRMED("Đã xác nhận"),
         SHIPPING("Đang giao hàng"),
         COMPLETED("Đã hoàn thành"),
         CANCELLED("Đã hủy"),
-        PROCESSING("Đang xuất kho");
+        PROCESSING("Đang xuất kho"),
+        DELIVERY_FAILED("Giao hàng thất bại");   // Giao hàng thất bại
 
         private final String description;
 

@@ -105,6 +105,105 @@ public class PaymentController {
     }
 
     /**
+     * Xác nhận thanh toán COD
+     */
+    @PostMapping("/{paymentId}/confirm-cod")
+    public ResponseEntity<PaymentResponseDTO> confirmCodPayment(
+            @PathVariable Long paymentId,
+            @RequestBody CodConfirmRequest confirmRequest) {
+        try {
+            PaymentResponseDTO updatedPayment = paymentService.confirmCodPayment(paymentId, confirmRequest.getNote());
+            return ResponseEntity.ok(updatedPayment);
+        } catch (Exception e) {
+            log.error("Lỗi khi xác nhận thanh toán COD {}: {}", paymentId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
+
+    /**
+     * Xử lý từ chối giao hàng COD
+     */
+    @PostMapping("/{paymentId}/reject-cod")
+    public ResponseEntity<PaymentResponseDTO> rejectCodPayment(
+            @PathVariable Long paymentId,
+            @RequestBody CodRejectionRequest rejectionRequest) {
+        try {
+            PaymentResponseDTO result = paymentService.handleCodRejection(
+                    paymentId,
+                    rejectionRequest.getReason(),
+                    rejectionRequest.getNote());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Lỗi khi xử lý từ chối COD {}: {}", paymentId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
+
+    /**
+     * Thử lại giao hàng COD sau khi bị từ chối
+     */
+    @PostMapping("/{paymentId}/reattempt-cod")
+    public ResponseEntity<PaymentResponseDTO> reattemptCodDelivery(@PathVariable Long paymentId) {
+        try {
+            PaymentResponseDTO result = paymentService.reattemptCodDelivery(paymentId);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Lỗi khi thử lại giao hàng COD {}: {}", paymentId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
+
+    /**
+     * Gửi OTP để xác nhận giao hàng
+     */
+    @PostMapping("/order/{orderId}/send-otp")
+    public ResponseEntity<ApiResponse> sendDeliveryConfirmationOtp(@PathVariable Long orderId) {
+        try {
+            String result = paymentService.sendDeliveryConfirmationOtp(orderId);
+            return ResponseEntity.ok(new ApiResponse(true, result));
+        } catch (Exception e) {
+            log.error("Lỗi khi gửi OTP xác nhận giao hàng {}: {}", orderId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Lỗi khi gửi OTP: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Xác nhận giao hàng thành công với OTP
+     */
+    @PostMapping("/order/{orderId}/confirm-delivery")
+    public ResponseEntity<PaymentResponseDTO> confirmDeliveryWithOtp(
+            @PathVariable Long orderId,
+            @RequestBody OtpConfirmRequest otpRequest) {
+        try {
+            PaymentResponseDTO result = paymentService.confirmDeliveryWithOtp(orderId, otpRequest.getOtp());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Lỗi khi xác nhận giao hàng với OTP {}: {}", orderId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
+
+    /**
+     * Hoàn tất đơn hàng (chuyển từ CONFIRMED sang COMPLETED)
+     */
+    @PostMapping("/order/{orderId}/complete")
+    public ResponseEntity<PaymentResponseDTO> completeOrder(@PathVariable Long orderId) {
+        try {
+            PaymentResponseDTO result = paymentService.completeOrder(orderId);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Lỗi khi hoàn tất đơn hàng {}: {}", orderId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
+
+    /**
      * Kiểm tra trạng thái thanh toán với cổng thanh toán
      */
     @GetMapping("/status/{transactionId}")
@@ -162,5 +261,53 @@ class PaymentStatusRequest {
 
     public void setStatus(Payment.PaymentStatus status) {
         this.status = status;
+    }
+}
+
+// DTO cho xác nhận COD
+class CodConfirmRequest {
+    private String note;
+
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
+    }
+}
+
+// DTO cho từ chối COD
+class CodRejectionRequest {
+    private String reason; // CUSTOMER_REJECTED, NOT_AVAILABLE, OTHER
+    private String note;
+
+    public String getReason() {
+        return reason;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
+    }
+}
+
+// DTO cho xác nhận OTP
+class OtpConfirmRequest {
+    private String otp;
+
+    public String getOtp() {
+        return otp;
+    }
+
+    public void setOtp(String otp) {
+        this.otp = otp;
     }
 }

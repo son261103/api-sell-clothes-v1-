@@ -27,6 +27,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.thymeleaf.context.Context;
+import org.thymeleaf.spring6.SpringTemplateEngine;
 
 import java.math.BigDecimal;
 import java.net.URI;
@@ -34,6 +36,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -51,6 +54,8 @@ public class PaymentService {
     private final VnpayConfig vnpayConfig;
     private final EmailService emailService;
     private final ObjectMapper objectMapper;
+    private final OrderItemService orderItemService;
+    private final SpringTemplateEngine templateEngine;
 
     @Value("${vnpay.return-url}")
     private String vnpReturnUrl;
@@ -281,7 +286,12 @@ public class PaymentService {
 
         Order order = payment.getOrder();
         if (order.getStatus() == Order.OrderStatus.PENDING) {
-            order.setStatus(Order.OrderStatus.CONFIRMED);
+            // Đối với thanh toán online, chuyển đơn hàng sang PROCESSING
+            if (!"COD".equalsIgnoreCase(payment.getPaymentMethod().getCode())) {
+                order.setStatus(Order.OrderStatus.PROCESSING);
+            }
+            // Đối với COD, giữ nguyên trạng thái PENDING vì thanh toán chỉ hoàn tất khi giao hàng
+
             order.setUpdatedAt(LocalDateTime.now());
             orderRepository.save(order);
 
@@ -322,6 +332,235 @@ public class PaymentService {
         log.warn("Thanh toán ID: {} thất bại cho đơn hàng ID: {}, lý do: {}",
                 payment.getPaymentId(), payment.getOrder().getOrderId(), note);
         return paymentMapper.toDto(savedPayment);
+    }
+
+    /**
+     * Xử lý từ chối giao hàng COD
+     */
+    @Transactional
+    public PaymentResponseDTO handleCodRejection(Long paymentId, String reason, String note) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment", "id", paymentId));
+
+        if (!"COD".equalsIgnoreCase(payment.getPaymentMethod().getCode())) {
+            throw new IllegalArgumentException("Chỉ có thể xử lý từ chối cho thanh toán COD");
+        }
+
+        // Cập nhật trạng thái thanh toán
+        payment.setPaymentStatus(Payment.PaymentStatus.FAILED);
+        payment.setUpdatedAt(LocalDateTime.now());
+
+        // Thêm lịch sử thanh toán
+        PaymentHistory history = PaymentHistory.builder()
+                .payment(payment)
+                .status(PaymentHistoryStatus.FAILED)
+                .note("Giao hàng COD thất bại - Lý do: " + reason + " - Ghi chú: " + note)
+                .createdAt(LocalDateTime.now())
+                .build();
+        payment.addPaymentHistory(history);
+
+        // Cập nhật trạng thái đơn hàng
+        Order order = payment.getOrder();
+        order.setStatus(Order.OrderStatus.DELIVERY_FAILED);  // Sử dụng trạng thái mới DELIVERY_FAILED
+        order.setUpdatedAt(LocalDateTime.now());
+        orderRepository.save(order);
+
+        // Khôi phục lại tồn kho sản phẩm nếu cần
+        if (reason.equals("CUSTOMER_REJECTED") || reason.equals("PERMANENTLY_UNAVAILABLE")) {
+            orderItemService.restoreInventory(order.getOrderId());
+        }
+
+        // Gửi email thông báo
+        sendCodRejectionEmail(payment, reason, note);
+
+        Payment savedPayment = paymentRepository.save(payment);
+        log.info("Đã xử lý từ chối COD cho thanh toán ID: {}, lý do: {}", paymentId, reason);
+
+        return paymentMapper.toDto(savedPayment);
+    }
+
+    /**
+     * Thử lại giao hàng COD sau khi bị từ chối
+     */
+    @Transactional
+    public PaymentResponseDTO reattemptCodDelivery(Long paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment", "id", paymentId));
+
+        if (!"COD".equalsIgnoreCase(payment.getPaymentMethod().getCode())) {
+            throw new IllegalArgumentException("Chỉ có thể thử lại giao hàng cho thanh toán COD");
+        }
+
+        if (payment.getPaymentStatus() != Payment.PaymentStatus.FAILED) {
+            throw new IllegalArgumentException("Chỉ có thể thử lại giao hàng cho thanh toán thất bại");
+        }
+
+        Order order = payment.getOrder();
+        if (order.getStatus() != Order.OrderStatus.DELIVERY_FAILED) {
+            throw new IllegalArgumentException("Chỉ có thể thử lại giao hàng cho đơn hàng có trạng thái DELIVERY_FAILED");
+        }
+
+        // Đặt lại trạng thái thanh toán
+        payment.setPaymentStatus(Payment.PaymentStatus.PENDING);
+        payment.setUpdatedAt(LocalDateTime.now());
+
+        // Thêm lịch sử thanh toán
+        PaymentHistory history = PaymentHistory.builder()
+                .payment(payment)
+                .status(PaymentHistoryStatus.PENDING)
+                .note("Thử lại giao hàng COD")
+                .createdAt(LocalDateTime.now())
+                .build();
+        payment.addPaymentHistory(history);
+
+        // Cập nhật trạng thái đơn hàng
+        order.setStatus(Order.OrderStatus.PROCESSING);
+        order.setUpdatedAt(LocalDateTime.now());
+        orderRepository.save(order);
+
+        // Gửi email thông báo
+        sendCodReattemptEmail(payment);
+
+        Payment savedPayment = paymentRepository.save(payment);
+        log.info("Đã đặt lại thanh toán ID: {} để thử lại giao hàng COD", paymentId);
+
+        return paymentMapper.toDto(savedPayment);
+    }
+
+    /**
+     * Gửi OTP để xác nhận nhận hàng COD
+     */
+    @Transactional
+    public String sendDeliveryConfirmationOtp(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+
+        if (order.getStatus() != Order.OrderStatus.SHIPPING) {
+            throw new IllegalArgumentException("Chỉ có thể gửi OTP xác nhận cho đơn hàng đang giao");
+        }
+
+        // Tạo OTP
+        String otp = generateOtp(6);
+
+        // Lưu OTP vào đơn hàng (có thể cần thêm trường để lưu)
+        order.setDeliveryOtp(otp);
+        order.setDeliveryOtpExpiry(LocalDateTime.now().plusMinutes(15)); // OTP hết hạn sau 15 phút
+        orderRepository.save(order);
+
+        // Gửi OTP qua email
+        sendDeliveryOtpEmail(order, otp);
+
+        log.info("Đã gửi OTP xác nhận giao hàng cho đơn hàng ID: {}", orderId);
+        return "Đã gửi OTP xác nhận giao hàng đến email của khách hàng";
+    }
+
+    /**
+     * Xác nhận giao hàng thành công với OTP
+     */
+    @Transactional
+    public PaymentResponseDTO confirmDeliveryWithOtp(Long orderId, String otp) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+
+        if (order.getStatus() != Order.OrderStatus.SHIPPING) {
+            throw new IllegalArgumentException("Chỉ có thể xác nhận giao hàng cho đơn hàng đang giao");
+        }
+
+        // Kiểm tra OTP
+        if (order.getDeliveryOtp() == null || !order.getDeliveryOtp().equals(otp)) {
+            throw new IllegalArgumentException("OTP không hợp lệ");
+        }
+
+        // Kiểm tra thời hạn OTP
+        if (order.getDeliveryOtpExpiry() == null || LocalDateTime.now().isAfter(order.getDeliveryOtpExpiry())) {
+            throw new IllegalArgumentException("OTP đã hết hạn");
+        }
+
+        // Xác nhận giao hàng thành công
+        order.setStatus(Order.OrderStatus.CONFIRMED);
+        order.setUpdatedAt(LocalDateTime.now());
+        order.setDeliveryOtp(null); // Xóa OTP sau khi xác nhận
+        order.setDeliveryOtpExpiry(null);
+        orderRepository.save(order);
+
+        Payment payment = null;
+        // Nếu là COD, xác nhận thanh toán
+        if (order.getPayment() != null &&
+                "COD".equalsIgnoreCase(order.getPayment().getPaymentMethod().getCode()) &&
+                order.getPayment().getPaymentStatus() == Payment.PaymentStatus.PENDING) {
+
+            payment = order.getPayment();
+            // Cập nhật trạng thái thanh toán
+            payment.setPaymentStatus(Payment.PaymentStatus.COMPLETED);
+            payment.setUpdatedAt(LocalDateTime.now());
+
+            // Thêm lịch sử thanh toán
+            PaymentHistory history = PaymentHistory.builder()
+                    .payment(payment)
+                    .status(PaymentHistoryStatus.COMPLETED)
+                    .note("Thanh toán COD đã được xác nhận khi giao hàng với OTP")
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            payment.addPaymentHistory(history);
+
+            payment = paymentRepository.save(payment);
+
+            // Gửi email xác nhận thanh toán
+            sendPaymentConfirmationEmail(payment);
+        }
+
+        // Gửi email thông báo
+        emailService.sendOrderStatusUpdateEmail(
+                order.getUser().getEmail(),
+                order.getUser().getFullName(),
+                order.getOrderId().toString(),
+                "Đã giao hàng thành công"
+        );
+
+        log.info("Đã xác nhận giao hàng thành công với OTP cho đơn hàng ID: {}", orderId);
+
+        if (payment != null) {
+            return paymentMapper.toDto(payment);
+        } else if (order.getPayment() != null) {
+            return paymentMapper.toDto(order.getPayment());
+        } else {
+            return null; // hoặc có thể tạo PaymentResponseDTO rỗng hoặc throw exception tùy vào yêu cầu
+        }
+    }
+
+    /**
+     * Hoàn tất đơn hàng (chuyển từ CONFIRMED sang COMPLETED)
+     */
+    @Transactional
+    public PaymentResponseDTO completeOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+
+        if (order.getStatus() != Order.OrderStatus.CONFIRMED) {
+            throw new IllegalArgumentException("Chỉ có thể hoàn tất đơn hàng đã được xác nhận giao thành công");
+        }
+
+        // Cập nhật trạng thái đơn hàng
+        order.setStatus(Order.OrderStatus.COMPLETED);
+        order.setUpdatedAt(LocalDateTime.now());
+        orderRepository.save(order);
+
+        // Gửi email thông báo
+        emailService.sendOrderStatusUpdateEmail(
+                order.getUser().getEmail(),
+                order.getUser().getFullName(),
+                order.getOrderId().toString(),
+                "Đơn hàng đã hoàn tất"
+        );
+
+        log.info("Đã hoàn tất đơn hàng ID: {}", orderId);
+
+        // Trả về thông tin thanh toán nếu có
+        if (order.getPayment() != null) {
+            return paymentMapper.toDto(order.getPayment());
+        } else {
+            return null; // hoặc có thể tạo PaymentResponseDTO rỗng hoặc throw exception tùy vào yêu cầu
+        }
     }
 
     /**
@@ -367,7 +606,8 @@ public class PaymentService {
 
         Payment payment = order.getPayment();
         if (payment == null) {
-            throw new ResourceNotFoundException("Payment", "orderId", orderId);
+            // Return null instead of throwing an exception
+            return null;
         }
 
         return paymentMapper.toDto(payment);
@@ -561,5 +801,106 @@ public class PaymentService {
         } catch (Exception e) {
             log.error("Lỗi khi gửi thông báo COD cho admin: {}", e.getMessage());
         }
+    }
+
+    /**
+     * Gửi email thông báo từ chối COD
+     */
+    private void sendCodRejectionEmail(Payment payment, String reason, String note) {
+        try {
+            Order order = payment.getOrder();
+            String toEmail = order.getUser().getEmail();
+            String customerName = order.getUser().getFullName();
+            String orderNumber = order.getOrderId().toString();
+
+            // Map mã lý do từ chối sang mô tả dễ hiểu
+            String reasonDescription;
+            switch(reason) {
+                case "CUSTOMER_REJECTED":
+                    reasonDescription = "Khách hàng từ chối nhận hàng";
+                    break;
+                case "NOT_AVAILABLE":
+                    reasonDescription = "Khách hàng không có ở nhà/không liên lạc được";
+                    break;
+                default:
+                    reasonDescription = reason;
+            }
+
+            // Tạo context cho template email
+            Context context = new Context();
+            context.setVariable("customerName", customerName);
+            context.setVariable("orderNumber", orderNumber);
+            context.setVariable("reasonDescription", reasonDescription);
+            context.setVariable("note", note);
+            context.setVariable("updateDate", LocalDateTime.now().toString());
+
+            String emailContent = templateEngine.process("Mail/codRejectionNotification", context);
+
+            emailService.sendHtmlEmail(toEmail, "Thông báo về đơn hàng #" + orderNumber, emailContent);
+            log.info("Đã gửi email thông báo từ chối COD cho đơn hàng ID: {}", order.getOrderId());
+        } catch (Exception e) {
+            log.error("Lỗi khi gửi email thông báo từ chối COD: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Gửi email thông báo thử lại giao hàng COD
+     */
+    private void sendCodReattemptEmail(Payment payment) {
+        try {
+            Order order = payment.getOrder();
+            String toEmail = order.getUser().getEmail();
+            String customerName = order.getUser().getFullName();
+            String orderNumber = order.getOrderId().toString();
+
+            // Tạo context cho template email
+            Context context = new Context();
+            context.setVariable("customerName", customerName);
+            context.setVariable("orderNumber", orderNumber);
+            context.setVariable("updateDate", LocalDateTime.now().toString());
+
+            String emailContent = templateEngine.process("Mail/codReattemptNotification", context);
+
+            emailService.sendHtmlEmail(toEmail, "Thông báo giao lại đơn hàng #" + orderNumber, emailContent);
+            log.info("Đã gửi email thông báo giao lại COD cho đơn hàng ID: {}", order.getOrderId());
+        } catch (Exception e) {
+            log.error("Lỗi khi gửi email thông báo giao lại COD: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Gửi email OTP xác nhận giao hàng
+     */
+    private void sendDeliveryOtpEmail(Order order, String otp) {
+        try {
+            String toEmail = order.getUser().getEmail();
+            String customerName = order.getUser().getFullName();
+            String orderNumber = order.getOrderId().toString();
+
+            Context context = new Context();
+            context.setVariable("customerName", customerName);
+            context.setVariable("orderNumber", orderNumber);
+            context.setVariable("otp", otp);
+            context.setVariable("expiry", "15 phút");
+
+            String emailContent = templateEngine.process("Mail/deliveryOtpEmail", context);
+
+            emailService.sendHtmlEmail(toEmail, "Mã OTP xác nhận giao hàng - Đơn hàng #" + orderNumber, emailContent);
+            log.info("Đã gửi email OTP xác nhận giao hàng cho đơn hàng ID: {}", order.getOrderId());
+        } catch (Exception e) {
+            log.error("Lỗi khi gửi email OTP xác nhận giao hàng: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Tạo mã OTP ngẫu nhiên
+     */
+    private String generateOtp(int length) {
+        Random random = new Random();
+        StringBuilder otp = new StringBuilder();
+        for (int i = 0; i < length; i++) {
+            otp.append(random.nextInt(10));
+        }
+        return otp.toString();
     }
 }

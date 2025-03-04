@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mã OTP xác nhận giao hàng</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .content {
+            padding: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px 0;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #777;
+        }
+        .otp-container {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #ddd;
+        }
+        .otp-code {
+            font-size: 32px;
+            letter-spacing: 5px;
+            font-weight: bold;
+            color: #007bff;
+            padding: 10px 0;
+        }
+        .expiry {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h2>Mã OTP xác nhận giao hàng</h2>
+</div>
+<div class="content">
+    <p>Kính gửi <strong th:text="${customerName}">Quý khách</strong>,</p>
+
+    <p>Đơn hàng <strong th:text="${orderNumber}">#12345</strong> của bạn đang được giao.</p>
+
+    <p>Để xác nhận việc nhận hàng, vui lòng cung cấp mã OTP sau đây cho nhân viên giao hàng:</p>
+
+    <div class="otp-container">
+        <div class="otp-code" th:text="${otp}">123456</div>
+        <p>Mã OTP này sẽ hết hạn sau <span class="expiry" th:text="${expiry}">15 phút</span>.</p>
+    </div>
+
+    <p><strong>Lưu ý quan trọng:</strong></p>
+    <ul>
+        <li>Chỉ cung cấp mã OTP khi bạn đã kiểm tra và nhận hàng</li>
+        <li>Mã OTP là bảo mật, không chia sẻ với bất kỳ ai ngoài nhân viên giao hàng</li>
+        <li>Nếu có bất kỳ vấn đề nào với đơn hàng, vui lòng liên hệ ngay với chúng tôi qua hotline <strong>1900 1234</strong></li>
+    </ul>
+
+    <p>Xin chân thành cảm ơn quý khách đã mua sắm cùng chúng tôi.</p>
+</div>
+<div class="footer">
+    <p>Email này được gửi tự động. Vui lòng không trả lời email này.</p>
+    <p>Bản quyền © 2023 AURAS. Tất cả các quyền được bảo lưu.</p>
+</div>
+</body>
+</html>

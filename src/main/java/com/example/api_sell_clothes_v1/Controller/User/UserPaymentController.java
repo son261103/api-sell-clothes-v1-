@@ -97,6 +97,29 @@ public class UserPaymentController {
     }
 
     /**
+     * Xác nhận giao hàng với OTP (cho người dùng)
+     */
+    @PostMapping("/confirm-delivery/{orderId}")
+    public ResponseEntity<?> confirmDeliveryWithOtp(
+            @RequestHeader(value = "X-User-Id") Long userId,
+            @PathVariable Long orderId,
+            @RequestBody UserOtpConfirmRequest otpRequest) {
+        try {
+            PaymentResponseDTO result = paymentService.confirmDeliveryWithOtp(orderId, otpRequest.getOtp());
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            log.error("Dữ liệu không hợp lệ khi xác nhận giao hàng: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            log.error("Lỗi khi xác nhận giao hàng với OTP cho đơn hàng {} của userId {}: {}",
+                    orderId, userId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Lỗi khi xác nhận giao hàng: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Lấy thông tin chi tiết thanh toán theo ID đơn hàng
      */
     @GetMapping("/order/{orderId}")
@@ -105,6 +128,14 @@ public class UserPaymentController {
             @PathVariable Long orderId) {
         try {
             PaymentResponseDTO paymentResponse = paymentService.getPaymentByOrderId(orderId, userId);
+
+            // If no payment exists, return a 204 No Content response with a message
+            if (paymentResponse == null) {
+                return ResponseEntity.ok(
+                        new ApiResponse(true, "No payment exists for this order yet")
+                );
+            }
+
             return ResponseEntity.ok(paymentResponse);
         } catch (IllegalArgumentException e) {
             log.error("Dữ liệu không hợp lệ khi lấy thông tin thanh toán: {}", e.getMessage());
@@ -245,5 +276,17 @@ public class UserPaymentController {
             log.error("Lỗi mã hóa query string: {}", e.getMessage(), e);
             return ""; // Trả về chuỗi rỗng hoặc xử lý lỗi theo cách phù hợp
         }
+    }
+}
+
+class UserOtpConfirmRequest {
+    private String otp;
+
+    public String getOtp() {
+        return otp;
+    }
+
+    public void setOtp(String otp) {
+        this.otp = otp;
     }
 }
