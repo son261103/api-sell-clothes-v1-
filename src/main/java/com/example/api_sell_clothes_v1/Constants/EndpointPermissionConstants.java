@@ -246,7 +246,7 @@ public class EndpointPermissionConstants {
     public static final Map<String, String> ORDER_ENDPOINTS = new HashMap<>() {{
         // User order endpoints
         put(ApiPatternConstants.API_ORDERS + "/create",
-                PermissionType.CHECKOUT_CART.getCodeName());
+                PermissionType.CHECKOUT_CART.getCodeName()); // Giữ nguyên như mã gốc
         put(ApiPatternConstants.API_ORDERS + "/{orderId}",
                 PermissionType.VIEW_ORDER.getCodeName());
         put(ApiPatternConstants.API_ORDERS,
@@ -260,23 +260,22 @@ public class EndpointPermissionConstants {
 
         // Admin order endpoints
         put(ApiPatternConstants.API_ORDERS + "/admin/{orderId}",
-                PermissionType.MANAGE_ORDER.getCodeName());
-        put(ApiPatternConstants.API_ORDERS + "/admin/list",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.VIEW_ORDER.getCodeName()); // GET: Xem chi tiết
+        put(ApiPatternConstants.API_ORDERS + "/list",
+                PermissionType.VIEW_ORDER.getCodeName()); // Xem danh sách
         put(ApiPatternConstants.API_ORDERS + "/admin/status/{status}",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.VIEW_ORDER.getCodeName()); // Xem theo trạng thái
         put(ApiPatternConstants.API_ORDERS + "/admin/search",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.VIEW_ORDER.getCodeName()); // Tìm kiếm
         put(ApiPatternConstants.API_ORDERS + "/admin/filter",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.VIEW_ORDER.getCodeName()); // Lọc
         put(ApiPatternConstants.API_ORDERS + "/admin/{orderId}/status",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.EDIT_ORDER.getCodeName()); // PUT: Cập nhật trạng thái
         put(ApiPatternConstants.API_ORDERS + "/admin/statistics",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.VIEW_ORDER.getCodeName()); // Thống kê
         put(ApiPatternConstants.API_ORDERS + "/admin/{orderId}",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.DELETE_ORDER.getCodeName()); // DELETE: Xóa đơn hàng
     }};
-
 
     // OrderItem endpoint permissions
     public static final Map<String, String> ORDER_ITEM_ENDPOINTS = new HashMap<>() {{
@@ -461,6 +460,27 @@ public class EndpointPermissionConstants {
                 PermissionType.MANAGE_PAYMENT_HISTORY.getCodeName()); // GET: History by order ID
         put(ApiPatternConstants.API_PAYMENT_HISTORY + "/admin/list",
                 PermissionType.MANAGE_PAYMENT_HISTORY.getCodeName()); // GET: Paginated list
+    }};
+
+    // Shipping endpoint permissions
+    public static final Map<String, String> SHIPPING_ENDPOINTS = new HashMap<>() {{
+        // User shipping endpoints
+        put(ApiPatternConstants.API_SHIPPING + "/methods",
+                PermissionType.VIEW_SHIPPING.getCodeName()); // GET: All shipping methods
+        put(ApiPatternConstants.API_SHIPPING + "/methods/{id}",
+                PermissionType.VIEW_SHIPPING.getCodeName()); // GET: Shipping method by ID
+        put(ApiPatternConstants.API_SHIPPING + "/estimate",
+                PermissionType.VIEW_CART.getCodeName()); // GET: Estimate shipping cost
+
+        // Admin shipping endpoints
+        put(ApiPatternConstants.API_SHIPPING + "/admin/methods",
+                PermissionType.MANAGE_SHIPPING.getCodeName()); // GET & POST: List and create methods
+        put(ApiPatternConstants.API_SHIPPING + "/admin/methods/{id}",
+                PermissionType.MANAGE_SHIPPING.getCodeName()); // GET, PUT, DELETE: Get, update, delete method
+        put(ApiPatternConstants.API_SHIPPING + "/admin/apply",
+                PermissionType.MANAGE_ORDER.getCodeName()); // POST: Apply shipping to order
+        put(ApiPatternConstants.API_SHIPPING + "/admin/calculate",
+                PermissionType.MANAGE_SHIPPING.getCodeName()); // GET: Calculate shipping (admin view)
     }};
 
 

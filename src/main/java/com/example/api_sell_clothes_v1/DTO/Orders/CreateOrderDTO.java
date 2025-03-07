@@ -22,4 +22,8 @@ public class CreateOrderDTO {
 
     // Ghi chú đơn hàng
     private String notes;
+
+    private Long shippingMethodId;
+
+    private Double totalWeight;
 }

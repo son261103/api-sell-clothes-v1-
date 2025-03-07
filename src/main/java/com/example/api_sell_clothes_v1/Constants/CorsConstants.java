@@ -21,7 +21,8 @@ public class CorsConstants {
             "Accept",
             "Origin",
             "Access-Control-Request-Method",
-            "Access-Control-Request-Headers"
+            "Access-Control-Request-Headers",
+            "X-User-Id"
     };
 
     public static final long MAX_AGE = 3600L;

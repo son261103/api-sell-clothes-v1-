@@ -326,13 +326,21 @@ public class AuthController {
      * Get user profile
      */
     @GetMapping("/profile")
-    public ResponseEntity<UserProfileDTO> getUserProfile(
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
+    public ResponseEntity<?> getUserProfile(@AuthenticationPrincipal CustomUserDetails userDetails) {
         try {
+            if (userDetails == null || userDetails.getUser() == null) {
+                log.error("No authenticated user found in request");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ApiResponse(false, "No authenticated user found"));
+            }
+
+            log.info("Fetching profile for user: {}", userDetails.getUser().getUserId());
             UserProfileDTO profile = authService.getUserProfile(userDetails.getUser().getUserId());
             return ResponseEntity.ok(profile);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error fetching user profile: " + e.getMessage());
+            log.error("Error fetching user profile: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse(false, "Error fetching user profile: " + e.getMessage()));
         }
     }
 

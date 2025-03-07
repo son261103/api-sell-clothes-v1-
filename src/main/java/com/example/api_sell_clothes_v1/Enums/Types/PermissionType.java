@@ -80,10 +80,11 @@ public enum PermissionType {
 
     // Payment History Management Permissions
     VIEW_PAYMENT_HISTORY("VIEW_PAYMENT_HISTORY", "View Payment History", "Allows USER to view their payment history", "Payment Management"),
-    MANAGE_PAYMENT_HISTORY("MANAGE_PAYMENT_HISTORY", "Manage Payment History", "Allows ADMIN to view and manage all payment history", "Payment Management");
+    MANAGE_PAYMENT_HISTORY("MANAGE_PAYMENT_HISTORY", "Manage Payment History", "Allows ADMIN to view and manage all payment history", "Payment Management"),
 
-
-
+    // Shipping Management Permissions
+    VIEW_SHIPPING("VIEW_SHIPPING_METHOD", "View Shipping Method", "Allows USER to view available shipping methods", "Shipping Management"),
+    MANAGE_SHIPPING("MANAGE_SHIPPING_METHOD", "Manage Shipping Method", "Allows ADMIN to manage shipping methods (create, edit, delete)", "Shipping Management");
 
     private final String codeName;
     private final String name;

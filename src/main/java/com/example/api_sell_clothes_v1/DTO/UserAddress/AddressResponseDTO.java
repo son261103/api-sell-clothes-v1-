@@ -16,6 +16,7 @@ public class AddressResponseDTO {
     private String city;
     private String district;
     private String ward;
+    private String phoneNumber;
     private Boolean isDefault;
 
     // Full address for display purposes

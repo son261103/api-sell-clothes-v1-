@@ -58,6 +58,7 @@ public class Payment {
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "payment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<PaymentHistory> paymentHistories = new ArrayList<>();
 
     // Enum cho trạng thái thanh toán

@@ -18,23 +18,18 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@RequestMapping(ApiPatternConstants.API_USER_ADDRESSES)
+@RequestMapping(ApiPatternConstants.API_USER_ADDRESSES) // /api/v1/user-addresses
 @RequiredArgsConstructor
-public class UserAddressController {
+public class AdminUserAddressController {
     private final UserAddressService addressService;
 
-    /**
-     * Get all addresses for the authenticated user
-     */
+    // Endpoint cho người dùng
     @GetMapping
     @PreAuthorize("hasAuthority('VIEW_ADDRESS')")
     public ResponseEntity<List<AddressResponseDTO>> getUserAddresses(@RequestAttribute("userId") Long userId) {
         return ResponseEntity.ok(addressService.getUserAddresses(userId));
     }
 
-    /**
-     * Get address by ID for the authenticated user
-     */
     @GetMapping("/{addressId}")
     @PreAuthorize("hasAuthority('VIEW_ADDRESS')")
     public ResponseEntity<AddressResponseDTO> getUserAddressById(
@@ -43,9 +38,6 @@ public class UserAddressController {
         return ResponseEntity.ok(addressService.getUserAddressById(userId, addressId));
     }
 
-    /**
-     * Create new address for the authenticated user
-     */
     @PostMapping
     @PreAuthorize("hasAuthority('CREATE_ADDRESS')")
     public ResponseEntity<AddressResponseDTO> createAddress(
@@ -60,9 +52,6 @@ public class UserAddressController {
         }
     }
 
-    /**
-     * Update address for the authenticated user
-     */
     @PutMapping("/{addressId}")
     @PreAuthorize("hasAuthority('EDIT_ADDRESS')")
     public ResponseEntity<AddressResponseDTO> updateAddress(
@@ -78,9 +67,6 @@ public class UserAddressController {
         }
     }
 
-    /**
-     * Delete address for the authenticated user
-     */
     @DeleteMapping("/{addressId}")
     @PreAuthorize("hasAuthority('DELETE_ADDRESS')")
     public ResponseEntity<ApiResponse> deleteAddress(
@@ -92,9 +78,6 @@ public class UserAddressController {
                 : ResponseEntity.badRequest().body(response);
     }
 
-    /**
-     * Set address as default for the authenticated user
-     */
     @PutMapping("/{addressId}/default")
     @PreAuthorize("hasAuthority('SET_DEFAULT_ADDRESS')")
     public ResponseEntity<AddressResponseDTO> setDefaultAddress(
@@ -109,27 +92,18 @@ public class UserAddressController {
         }
     }
 
-    /**
-     * Get default address for the authenticated user
-     */
     @GetMapping("/default")
     @PreAuthorize("hasAuthority('VIEW_ADDRESS')")
     public ResponseEntity<AddressResponseDTO> getDefaultAddress(@RequestAttribute("userId") Long userId) {
         return ResponseEntity.ok(addressService.getDefaultAddress(userId));
     }
 
-    /**
-     * Get address count for the authenticated user
-     */
     @GetMapping("/count")
     @PreAuthorize("hasAuthority('VIEW_ADDRESS')")
     public ResponseEntity<Long> getAddressCount(@RequestAttribute("userId") Long userId) {
         return ResponseEntity.ok(addressService.getAddressCount(userId));
     }
 
-    /**
-     * Check if address exists
-     */
     @GetMapping("/check/{addressId}")
     @PreAuthorize("hasAuthority('VIEW_ADDRESS')")
     public ResponseEntity<ApiResponse> checkAddressExists(@PathVariable Long addressId) {
@@ -137,9 +111,6 @@ public class UserAddressController {
         return ResponseEntity.ok(new ApiResponse(exists, exists ? "Địa chỉ tồn tại" : "Địa chỉ không tồn tại"));
     }
 
-    /**
-     * Check if address belongs to user
-     */
     @GetMapping("/check/{addressId}/owner")
     @PreAuthorize("hasAuthority('VIEW_ADDRESS')")
     public ResponseEntity<ApiResponse> checkAddressBelongsToUser(
@@ -150,32 +121,20 @@ public class UserAddressController {
                 belongsToUser ? "Địa chỉ thuộc về người dùng" : "Địa chỉ không thuộc về người dùng"));
     }
 
-    /**
-     * ADMIN ENDPOINTS
-     */
-
-    /**
-     * Get address by ID (admin)
-     */
+    // Endpoint cho admin
     @GetMapping("/admin/{addressId}")
     @PreAuthorize("hasAuthority('MANAGE_CUSTOMER_ADDRESSES')")
     public ResponseEntity<AddressResponseDTO> getAddressById(@PathVariable Long addressId) {
         return ResponseEntity.ok(addressService.getAddressById(addressId));
     }
 
-    /**
-     * Get all addresses for a user (admin)
-     */
-    @GetMapping("/admin/user/{userId}")
+    @GetMapping("/user/{userId}")
     @PreAuthorize("hasAuthority('MANAGE_CUSTOMER_ADDRESSES')")
     public ResponseEntity<List<AddressResponseDTO>> getAddressesByUserId(@PathVariable Long userId) {
         return ResponseEntity.ok(addressService.getUserAddresses(userId));
     }
 
-    /**
-     * Create address for a user (admin)
-     */
-    @PostMapping("/admin/user/{userId}")
+    @PostMapping("/user/{userId}")
     @PreAuthorize("hasAuthority('MANAGE_CUSTOMER_ADDRESSES')")
     public ResponseEntity<AddressResponseDTO> createAddressForUser(
             @PathVariable Long userId,
@@ -189,16 +148,12 @@ public class UserAddressController {
         }
     }
 
-    /**
-     * Update address (admin)
-     */
     @PutMapping("/admin/{addressId}")
     @PreAuthorize("hasAuthority('MANAGE_CUSTOMER_ADDRESSES')")
     public ResponseEntity<AddressResponseDTO> updateAddressAdmin(
             @PathVariable Long addressId,
             @Valid @RequestBody UpdateAddressDTO updateDTO) {
         try {
-            // Get the address to find the user
             AddressResponseDTO address = addressService.getAddressById(addressId);
             AddressResponseDTO updatedAddress = addressService.updateAddress(address.getUserId(), addressId, updateDTO);
             return ResponseEntity.ok(updatedAddress);
@@ -208,14 +163,10 @@ public class UserAddressController {
         }
     }
 
-    /**
-     * Delete address (admin)
-     */
     @DeleteMapping("/admin/{addressId}")
     @PreAuthorize("hasAuthority('MANAGE_CUSTOMER_ADDRESSES')")
     public ResponseEntity<ApiResponse> deleteAddressAdmin(@PathVariable Long addressId) {
         try {
-            // Get the address to find the user
             AddressResponseDTO address = addressService.getAddressById(addressId);
             ApiResponse response = addressService.deleteAddress(address.getUserId(), addressId);
             return response.isSuccess()
@@ -227,9 +178,6 @@ public class UserAddressController {
         }
     }
 
-    /**
-     * Validate address for order
-     */
     @GetMapping("/validate")
     @PreAuthorize("hasAuthority('VALIDATE_ADDRESS')")
     public ResponseEntity<ApiResponse> validateAddressForOrder(

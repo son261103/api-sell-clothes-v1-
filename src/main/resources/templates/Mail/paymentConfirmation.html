@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Xác nhận thanh toán</title>
+</head>
+<body>
+<h1>Xin chào <span th:text="${customerName}"></span>,</h1>
+<p>Cảm ơn bạn đã thanh toán đơn hàng <strong th:text="${orderNumber}"></strong>.</p>
+<p>Phương thức thanh toán: <span th:text="${paymentMethodName}"></span></p>
+<p>Số tiền: <span th:text="${amount}"></span> VND</p>
+<p>Mã giao dịch: <span th:text="${transactionId}"></span></p>
+<p>Trân trọng,<br/>Đội ngũ API Sell Clothes</p>
+</body>
+</html>
