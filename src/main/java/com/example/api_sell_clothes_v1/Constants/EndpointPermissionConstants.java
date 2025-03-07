@@ -246,7 +246,7 @@ public class EndpointPermissionConstants {
     public static final Map<String, String> ORDER_ENDPOINTS = new HashMap<>() {{
         // User order endpoints
         put(ApiPatternConstants.API_ORDERS + "/create",
-                PermissionType.CHECKOUT_CART.getCodeName());
+                PermissionType.CHECKOUT_CART.getCodeName()); // Giữ nguyên như mã gốc
         put(ApiPatternConstants.API_ORDERS + "/{orderId}",
                 PermissionType.VIEW_ORDER.getCodeName());
         put(ApiPatternConstants.API_ORDERS,
@@ -260,23 +260,22 @@ public class EndpointPermissionConstants {
 
         // Admin order endpoints
         put(ApiPatternConstants.API_ORDERS + "/admin/{orderId}",
-                PermissionType.MANAGE_ORDER.getCodeName());
-        put(ApiPatternConstants.API_ORDERS + "/admin/list",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.VIEW_ORDER.getCodeName()); // GET: Xem chi tiết
+        put(ApiPatternConstants.API_ORDERS + "/list",
+                PermissionType.VIEW_ORDER.getCodeName()); // Xem danh sách
         put(ApiPatternConstants.API_ORDERS + "/admin/status/{status}",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.VIEW_ORDER.getCodeName()); // Xem theo trạng thái
         put(ApiPatternConstants.API_ORDERS + "/admin/search",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.VIEW_ORDER.getCodeName()); // Tìm kiếm
         put(ApiPatternConstants.API_ORDERS + "/admin/filter",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.VIEW_ORDER.getCodeName()); // Lọc
         put(ApiPatternConstants.API_ORDERS + "/admin/{orderId}/status",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.EDIT_ORDER.getCodeName()); // PUT: Cập nhật trạng thái
         put(ApiPatternConstants.API_ORDERS + "/admin/statistics",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.VIEW_ORDER.getCodeName()); // Thống kê
         put(ApiPatternConstants.API_ORDERS + "/admin/{orderId}",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.DELETE_ORDER.getCodeName()); // DELETE: Xóa đơn hàng
     }};
-
 
     // OrderItem endpoint permissions
     public static final Map<String, String> ORDER_ITEM_ENDPOINTS = new HashMap<>() {{

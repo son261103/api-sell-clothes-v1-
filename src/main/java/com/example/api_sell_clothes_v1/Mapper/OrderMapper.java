@@ -9,6 +9,7 @@ import com.example.api_sell_clothes_v1.DTO.UserAddress.AddressResponseDTO;
 import com.example.api_sell_clothes_v1.DTO.Users.UserResponseDTO;
 import com.example.api_sell_clothes_v1.Entity.Order;
 import com.example.api_sell_clothes_v1.Entity.OrderItem;
+import com.example.api_sell_clothes_v1.Entity.Payment;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -107,15 +108,41 @@ public class OrderMapper implements EntityMapper<Order, OrderResponseDTO> {
         String shippingMethodName = entity.getShippingMethod() != null ?
                 entity.getShippingMethod().getName() : null;
 
+        // Generate order code if not present
+        String orderCode = "ORD-" + entity.getOrderId();
+
+        // Get payment status
+        Payment.PaymentStatus paymentStatus = null;
+        if (entity.getPayment() != null) {
+            paymentStatus = entity.getPayment().getPaymentStatus();
+        }
+
+        // Get user information
+        String userName = null;
+        String userEmail = null;
+        Long userId = null;
+        if (entity.getUser() != null) {
+            userName = entity.getUser().getFullName();
+            userEmail = entity.getUser().getEmail();
+            userId = entity.getUser().getUserId();
+        }
+
         return OrderSummaryDTO.builder()
                 .orderId(entity.getOrderId())
+                .orderCode(orderCode)
                 .status(entity.getStatus())
                 .statusDescription(entity.getStatus().getDescription())
                 .totalAmount(entity.getTotalAmount())
+                .finalAmount(entity.getTotalAmount()) // Đồng bộ với frontend
                 .shippingFee(entity.getShippingFee())
                 .shippingMethodName(shippingMethodName)
                 .totalItems(totalItems)
+                .itemCount(totalItems) // Đồng bộ với frontend
                 .createdAt(entity.getCreatedAt())
+                .userName(userName)
+                .userEmail(userEmail)
+                .userId(userId)
+                .paymentStatus(paymentStatus)
                 .build();
     }
 

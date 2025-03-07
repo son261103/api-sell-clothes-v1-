@@ -13,13 +13,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Slf4j
 @RestController
@@ -31,8 +30,8 @@ public class OrderController {
     /**
      * Get order by ID (admin)
      */
-    @GetMapping("/admin/{orderId}")
-    @PreAuthorize("hasAuthority('MANAGE_ORDER')")
+    @GetMapping("/{orderId}")
+    @PreAuthorize("hasAuthority('VIEW_ORDER')")
     public ResponseEntity<OrderResponseDTO> getOrderById(@PathVariable Long orderId) {
         return ResponseEntity.ok(orderService.getOrderById(orderId));
     }
@@ -40,18 +39,29 @@ public class OrderController {
     /**
      * Get all orders (admin)
      */
-    @GetMapping("/admin/list")
-    @PreAuthorize("hasAuthority('MANAGE_ORDER')")
+    @GetMapping("/list")
+    @PreAuthorize("hasAuthority('VIEW_ORDER')")
     public ResponseEntity<Page<OrderSummaryDTO>> getAllOrders(
-            @PageableDefault(page = 0, size = 10, sort = "createdAt") Pageable pageable) {
-        return ResponseEntity.ok(orderService.getAllOrders(pageable));
+            @PageableDefault(page = 0, size = 10, sort = "createdAt") Pageable pageable,
+            Authentication authentication) {
+        log.info("Received request to get all orders with pageable: {}", pageable);
+        log.info("Authentication: {}", authentication);
+        if (authentication != null) {
+            log.info("User: {}", authentication.getName());
+            log.info("Authorities: {}", authentication.getAuthorities());
+        } else {
+            log.info("No authentication found");
+        }
+        Page<OrderSummaryDTO> orders = orderService.getAllOrders(pageable);
+        log.info("Returning {} orders", orders.getTotalElements());
+        return ResponseEntity.ok(orders);
     }
 
     /**
      * Get orders by status (admin)
      */
-    @GetMapping("/admin/status/{status}")
-    @PreAuthorize("hasAuthority('MANAGE_ORDER')")
+    @GetMapping("/status/{status}")
+    @PreAuthorize("hasAuthority('VIEW_ORDER')")
     public ResponseEntity<Page<OrderSummaryDTO>> getOrdersByStatus(
             @PathVariable Order.OrderStatus status,
             @PageableDefault(page = 0, size = 10, sort = "createdAt") Pageable pageable) {
@@ -61,8 +71,8 @@ public class OrderController {
     /**
      * Get orders by shipping method (admin)
      */
-    @GetMapping("/admin/shipping-method/{methodId}")
-    @PreAuthorize("hasAuthority('MANAGE_ORDER')")
+    @GetMapping("/shipping-method/{methodId}")
+    @PreAuthorize("hasAuthority('VIEW_ORDER')")
     public ResponseEntity<Page<OrderSummaryDTO>> getOrdersByShippingMethod(
             @PathVariable Long methodId,
             @PageableDefault(page = 0, size = 10, sort = "createdAt") Pageable pageable) {
@@ -72,8 +82,8 @@ public class OrderController {
     /**
      * Search orders (admin)
      */
-    @GetMapping("/admin/search")
-    @PreAuthorize("hasAuthority('MANAGE_ORDER')")
+    @GetMapping("/search")
+    @PreAuthorize("hasAuthority('VIEW_ORDER')")
     public ResponseEntity<Page<OrderSummaryDTO>> searchOrders(
             @RequestParam String search,
             @PageableDefault(page = 0, size = 10, sort = "createdAt") Pageable pageable) {
@@ -83,8 +93,8 @@ public class OrderController {
     /**
      * Get filtered orders (admin)
      */
-    @GetMapping("/admin/filter")
-    @PreAuthorize("hasAuthority('MANAGE_ORDER')")
+    @GetMapping("/filter")
+    @PreAuthorize("hasAuthority('VIEW_ORDER')")
     public ResponseEntity<Page<OrderSummaryDTO>> getFilteredOrders(
             @RequestParam(required = false) Order.OrderStatus status,
             @RequestParam(required = false) Long userId,
@@ -97,8 +107,8 @@ public class OrderController {
     /**
      * Update order status (admin)
      */
-    @PutMapping("/admin/{orderId}/status")
-    @PreAuthorize("hasAuthority('MANAGE_ORDER')")
+    @PutMapping("/{orderId}/status")
+    @PreAuthorize("hasAuthority('EDIT_ORDER')")
     public ResponseEntity<OrderResponseDTO> updateOrderStatus(
             @PathVariable Long orderId,
             @Valid @RequestBody UpdateOrderStatusDTO updateDTO) {
@@ -114,8 +124,8 @@ public class OrderController {
     /**
      * Update shipping method for an order (admin)
      */
-    @PutMapping("/admin/{orderId}/shipping")
-    @PreAuthorize("hasAuthority('MANAGE_ORDER')")
+    @PutMapping("/{orderId}/shipping")
+    @PreAuthorize("hasAuthority('EDIT_ORDER')")
     public ResponseEntity<OrderResponseDTO> updateOrderShipping(
             @PathVariable Long orderId,
             @Valid @RequestBody ApplyShippingDTO applyDTO) {
@@ -134,8 +144,8 @@ public class OrderController {
     /**
      * Get order statistics (admin)
      */
-    @GetMapping("/admin/statistics")
-    @PreAuthorize("hasAuthority('MANAGE_ORDER')")
+    @GetMapping("/statistics")
+    @PreAuthorize("hasAuthority('VIEW_ORDER')")
     public ResponseEntity<OrderStatisticsDTO> getOrderStatistics() {
         return ResponseEntity.ok(orderService.getOrderStatistics());
     }
@@ -143,8 +153,8 @@ public class OrderController {
     /**
      * Delete order (admin only, for testing)
      */
-    @DeleteMapping("/admin/{orderId}")
-    @PreAuthorize("hasAuthority('MANAGE_ORDER')")
+    @DeleteMapping("/{orderId}")
+    @PreAuthorize("hasAuthority('DELETE_ORDER')")
     public ResponseEntity<ApiResponse> deleteOrder(@PathVariable Long orderId) {
         return ResponseEntity.ok(orderService.deleteOrder(orderId));
     }

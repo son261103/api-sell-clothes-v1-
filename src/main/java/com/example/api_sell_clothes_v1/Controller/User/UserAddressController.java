@@ -22,9 +22,6 @@ import java.util.List;
 public class UserAddressController {
     private final UserAddressService addressService;
 
-    /**
-     * Lấy tất cả địa chỉ của người dùng
-     */
     @GetMapping
     public ResponseEntity<?> getUserAddresses(@RequestHeader(value = "X-User-Id") Long userId) {
         try {
@@ -37,9 +34,6 @@ public class UserAddressController {
         }
     }
 
-    /**
-     * Lấy địa chỉ theo ID
-     */
     @GetMapping("/{addressId}")
     public ResponseEntity<?> getUserAddressById(
             @RequestHeader(value = "X-User-Id") Long userId,
@@ -58,9 +52,6 @@ public class UserAddressController {
         }
     }
 
-    /**
-     * Thêm địa chỉ mới cho người dùng
-     */
     @PostMapping
     public ResponseEntity<?> createAddress(
             @RequestHeader(value = "X-User-Id") Long userId,
@@ -79,9 +70,6 @@ public class UserAddressController {
         }
     }
 
-    /**
-     * Cập nhật địa chỉ
-     */
     @PutMapping("/{addressId}")
     public ResponseEntity<?> updateAddress(
             @RequestHeader(value = "X-User-Id") Long userId,
@@ -101,9 +89,6 @@ public class UserAddressController {
         }
     }
 
-    /**
-     * Xóa địa chỉ
-     */
     @DeleteMapping("/{addressId}")
     public ResponseEntity<?> deleteAddress(
             @RequestHeader(value = "X-User-Id") Long userId,
@@ -124,9 +109,6 @@ public class UserAddressController {
         }
     }
 
-    /**
-     * Đặt địa chỉ làm mặc định
-     */
     @PutMapping("/{addressId}/default")
     public ResponseEntity<?> setDefaultAddress(
             @RequestHeader(value = "X-User-Id") Long userId,
@@ -145,9 +127,6 @@ public class UserAddressController {
         }
     }
 
-    /**
-     * Lấy địa chỉ mặc định
-     */
     @GetMapping("/default")
     public ResponseEntity<?> getDefaultAddress(@RequestHeader(value = "X-User-Id") Long userId) {
         try {
@@ -164,9 +143,6 @@ public class UserAddressController {
         }
     }
 
-    /**
-     * Kiểm tra số lượng địa chỉ
-     */
     @GetMapping("/count")
     public ResponseEntity<?> getAddressCount(@RequestHeader(value = "X-User-Id") Long userId) {
         try {
@@ -179,9 +155,6 @@ public class UserAddressController {
         }
     }
 
-    /**
-     * Kiểm tra địa chỉ có hợp lệ cho đơn hàng không
-     */
     @GetMapping("/validate")
     public ResponseEntity<?> validateAddressForOrder(
             @RequestHeader(value = "X-User-Id") Long userId,
@@ -194,16 +167,12 @@ public class UserAddressController {
             return ResponseEntity.badRequest()
                     .body(new ApiResponse(false, e.getMessage()));
         } catch (Exception e) {
-            log.error("Lỗi khi kiểm tra địa chỉ {} cho đơn hàng của userId {}: {}",
-                    addressId, userId, e.getMessage(), e);
+            log.error("Lỗi khi kiểm tra địa chỉ {} cho đơn hàng của userId {}: {}", addressId, userId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse(false, "Lỗi khi kiểm tra địa chỉ: " + e.getMessage()));
         }
     }
 
-    /**
-     * Kiểm tra xem địa chỉ có thuộc về người dùng không
-     */
     @GetMapping("/check/{addressId}")
     public ResponseEntity<?> checkAddressBelongsToUser(
             @RequestHeader(value = "X-User-Id") Long userId,
@@ -213,8 +182,7 @@ public class UserAddressController {
             return ResponseEntity.ok(new ApiResponse(belongsToUser,
                     belongsToUser ? "Địa chỉ thuộc về người dùng" : "Địa chỉ không thuộc về người dùng"));
         } catch (Exception e) {
-            log.error("Lỗi khi kiểm tra quyền sở hữu địa chỉ {} cho userId {}: {}",
-                    addressId, userId, e.getMessage(), e);
+            log.error("Lỗi khi kiểm tra quyền sở hữu địa chỉ {} cho userId {}: {}", addressId, userId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse(false, "Lỗi khi kiểm tra quyền sở hữu địa chỉ: " + e.getMessage()));
         }
