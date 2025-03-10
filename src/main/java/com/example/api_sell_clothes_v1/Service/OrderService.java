@@ -1,6 +1,7 @@
 package com.example.api_sell_clothes_v1.Service;
 
 import com.example.api_sell_clothes_v1.DTO.ApiResponse;
+import com.example.api_sell_clothes_v1.DTO.Coupons.CouponValidationDTO;
 import com.example.api_sell_clothes_v1.DTO.Orders.*;
 import com.example.api_sell_clothes_v1.Entity.*;
 import com.example.api_sell_clothes_v1.Exceptions.InvalidOrderStatusException;
@@ -35,6 +36,9 @@ public class OrderService {
     private final OrderMapper orderMapper;
     private final OrderItemService orderItemService;
     private final ShippingService shippingService;
+    private final CouponService couponService;
+    private final CouponRepository couponRepository;
+    private final OrderCouponRepository orderCouponRepository;
 
     /**
      * Tạo đơn hàng mới từ giỏ hàng
@@ -70,14 +74,49 @@ public class OrderService {
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
 
-        // Tính tổng tiền hàng (chưa bao gồm phí vận chuyển)
+        // Tính tổng tiền hàng (chưa bao gồm phí vận chuyển và giảm giá)
         BigDecimal subTotal = calculateTotalAmount(cartItems);
+
+        // Áp dụng mã giảm giá nếu có
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        Coupon couponToApply = null;
+
+        if (createDTO.getCouponCode() != null && !createDTO.getCouponCode().isEmpty()) {
+            try {
+                CouponValidationDTO validationResult = couponService.validateCoupon(
+                        createDTO.getCouponCode(), subTotal);
+
+                if (validationResult.isValid()) {
+                    couponToApply = couponRepository.findByCode(createDTO.getCouponCode().toUpperCase())
+                            .orElseThrow(() -> new EntityNotFoundException("Mã giảm giá không tồn tại"));
+
+                    discountAmount = validationResult.getDiscountAmount();
+
+                    // Áp dụng giảm giá vào tổng tiền
+                    subTotal = subTotal.subtract(discountAmount);
+
+                    log.info("Áp dụng mã giảm giá {} cho đơn hàng, giảm: {}",
+                            createDTO.getCouponCode(), discountAmount);
+                } else {
+                    log.warn("Mã giảm giá không hợp lệ: {}", validationResult.getMessage());
+                    throw new IllegalArgumentException("Mã giảm giá không hợp lệ: " + validationResult.getMessage());
+                }
+            } catch (EntityNotFoundException e) {
+                log.warn("Mã giảm giá không tồn tại: {}", createDTO.getCouponCode());
+                throw new IllegalArgumentException("Mã giảm giá không tồn tại");
+            } catch (IllegalArgumentException e) {
+                throw e;
+            } catch (Exception e) {
+                log.error("Lỗi khi áp dụng mã giảm giá: {}", e.getMessage());
+                throw new IllegalArgumentException("Lỗi khi áp dụng mã giảm giá: " + e.getMessage());
+            }
+        }
 
         // Tính phí vận chuyển
         BigDecimal shippingFee = calculateShippingFee(createDTO, subTotal);
         order.setShippingFee(shippingFee);
 
-        // Tổng tiền cuối cùng bao gồm phí vận chuyển
+        // Tổng tiền cuối cùng bao gồm phí vận chuyển và sau khi đã giảm giá
         BigDecimal totalAmount = subTotal.add(shippingFee);
         order.setTotalAmount(totalAmount);
 
@@ -93,11 +132,16 @@ public class OrderService {
         // Lưu đơn hàng
         Order savedOrder = orderRepository.save(order);
 
+        // Áp dụng coupon nếu có
+        if (couponToApply != null) {
+            couponService.applyCouponToOrder(savedOrder, couponToApply, discountAmount);
+        }
+
         // Tạo các mục đơn hàng
         createOrderItems(savedOrder, cartItems);
 
-        log.info("Created order with ID: {} for user ID: {}, shipping_fee: {}, total_amount: {}",
-                savedOrder.getOrderId(), userId, shippingFee, totalAmount);
+        log.info("Created order with ID: {} for user ID: {}, shipping_fee: {}, discount: {}, total_amount: {}",
+                savedOrder.getOrderId(), userId, shippingFee, discountAmount, totalAmount);
         return orderMapper.toDto(savedOrder);
     }
 
@@ -164,6 +208,11 @@ public class OrderService {
 
         order.setStatus(Order.OrderStatus.CANCELLED);
         order.setUpdatedAt(LocalDateTime.now());
+
+        // Hủy các mã giảm giá đã áp dụng và khôi phục lượt sử dụng
+        restoreCouponsUsage(orderId);
+
+        // Khôi phục số lượng tồn kho
         orderItemService.restoreInventory(orderId);
 
         Order savedOrder = orderRepository.save(order);
@@ -182,6 +231,9 @@ public class OrderService {
         validateStatusTransition(order.getStatus(), updateDTO.getStatus());
 
         if (updateDTO.getStatus() == Order.OrderStatus.CANCELLED) {
+            // Hủy các mã giảm giá đã áp dụng và khôi phục lượt sử dụng
+            restoreCouponsUsage(orderId);
+            // Khôi phục số lượng tồn kho
             orderItemService.restoreInventory(orderId);
         }
 
@@ -208,18 +260,93 @@ public class OrderService {
         ShippingMethod shippingMethod = shippingMethodRepository.findById(shippingMethodId)
                 .orElseThrow(() -> new EntityNotFoundException("Shipping method not found"));
 
-        // Tính lại phí vận chuyển dựa trên tổng tiền hàng (loại trừ phí vận chuyển cũ)
-        BigDecimal baseAmount = order.getTotalAmount().subtract(order.getShippingFee() != null ? order.getShippingFee() : BigDecimal.ZERO);
-        BigDecimal newShippingFee = shippingService.calculateShippingFee(baseAmount, shippingMethodId, totalWeight);
+        // Lấy tổng số tiền giảm giá từ các coupon (nếu có)
+        BigDecimal totalDiscount = orderCouponRepository.getTotalDiscountForOrder(orderId);
+        if (totalDiscount == null) {
+            totalDiscount = BigDecimal.ZERO;
+        }
+
+        // Tính tổng tiền trước khi áp dụng giảm giá và phí vận chuyển
+        BigDecimal baseAmount = order.getTotalAmount()
+                .add(totalDiscount)
+                .subtract(order.getShippingFee() != null ? order.getShippingFee() : BigDecimal.ZERO);
+
+        // Tính phí vận chuyển mới
+        BigDecimal newShippingFee = shippingService.calculateShippingFee(
+                baseAmount.subtract(totalDiscount), // Sử dụng giá trị sau khi đã giảm giá để tính phí vận chuyển
+                shippingMethodId,
+                totalWeight);
 
         order.setShippingMethod(shippingMethod);
         order.setShippingFee(newShippingFee);
-        order.setTotalAmount(baseAmount.add(newShippingFee));
+
+        // Cập nhật tổng tiền: (tiền hàng - giảm giá) + phí vận chuyển mới
+        order.setTotalAmount(baseAmount.subtract(totalDiscount).add(newShippingFee));
         order.setUpdatedAt(LocalDateTime.now());
 
         Order updatedOrder = orderRepository.save(order);
-        log.info("Updated shipping method to {} for order ID: {}, new shipping_fee: {}", shippingMethodId, orderId, newShippingFee);
+        log.info("Updated shipping method to {} for order ID: {}, new shipping_fee: {}",
+                shippingMethodId, orderId, newShippingFee);
         return orderMapper.toDto(updatedOrder);
+    }
+
+    /**
+     * Thêm hoặc cập nhật mã giảm giá cho đơn hàng (admin only)
+     */
+    @Transactional
+    public OrderResponseDTO updateOrderCoupon(Long orderId, String couponCode) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
+
+        if (order.getStatus() != Order.OrderStatus.PENDING && order.getStatus() != Order.OrderStatus.PROCESSING) {
+            throw new InvalidOrderStatusException("Coupon can only be updated for orders in PENDING or PROCESSING state");
+        }
+
+        // Xóa các mã giảm giá hiện tại và khôi phục lượt sử dụng
+        restoreCouponsUsage(orderId);
+
+        // Nếu không có mã giảm giá mới, chỉ cần cập nhật lại tổng tiền
+        if (couponCode == null || couponCode.isEmpty()) {
+            // Tính lại tổng tiền không có giảm giá
+            BigDecimal totalItems = calculateTotalItemsAmount(order.getOrderItems());
+            order.setTotalAmount(totalItems.add(order.getShippingFee()));
+            order.setUpdatedAt(LocalDateTime.now());
+            Order updatedOrder = orderRepository.save(order);
+            log.info("Removed all coupons from order ID: {}", orderId);
+            return orderMapper.toDto(updatedOrder);
+        }
+
+        // Tính tổng tiền các mặt hàng
+        BigDecimal itemsTotal = calculateTotalItemsAmount(order.getOrderItems());
+
+        // Kiểm tra và áp dụng mã giảm giá mới
+        try {
+            CouponValidationDTO validationResult = couponService.validateCoupon(couponCode, itemsTotal);
+
+            if (validationResult.isValid()) {
+                Coupon coupon = couponRepository.findByCode(couponCode.toUpperCase())
+                        .orElseThrow(() -> new EntityNotFoundException("Mã giảm giá không tồn tại"));
+
+                BigDecimal discountAmount = validationResult.getDiscountAmount();
+
+                // Áp dụng mã giảm giá và cập nhật tổng tiền
+                couponService.applyCouponToOrder(order, coupon, discountAmount);
+
+                // Cập nhật tổng tiền sau khi áp dụng giảm giá và phí vận chuyển
+                order.setTotalAmount(itemsTotal.subtract(discountAmount).add(order.getShippingFee()));
+                order.setUpdatedAt(LocalDateTime.now());
+
+                Order updatedOrder = orderRepository.save(order);
+                log.info("Applied coupon {} to order ID: {}, discount: {}",
+                        couponCode, orderId, discountAmount);
+                return orderMapper.toDto(updatedOrder);
+            } else {
+                throw new IllegalArgumentException("Mã giảm giá không hợp lệ: " + validationResult.getMessage());
+            }
+        } catch (Exception e) {
+            log.error("Error applying coupon to order: {}", e.getMessage());
+            throw new IllegalArgumentException("Lỗi khi áp dụng mã giảm giá: " + e.getMessage());
+        }
     }
 
     /**
@@ -288,7 +415,14 @@ public class OrderService {
     public ApiResponse deleteOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
+
+        // Khôi phục lượt sử dụng coupon
+        restoreCouponsUsage(orderId);
+
+        // Xóa các mục đơn hàng
         orderItemService.deleteOrderItems(orderId);
+
+        // Xóa đơn hàng
         orderRepository.delete(order);
         log.info("Deleted order with ID: {}", orderId);
         return new ApiResponse(true, "Order successfully deleted");
@@ -310,6 +444,17 @@ public class OrderService {
         ShippingMethod method = shippingMethodRepository.findById(shippingMethodId)
                 .orElseThrow(() -> new EntityNotFoundException("Shipping method not found"));
         Page<Order> orders = orderRepository.findByShippingMethod(method, pageable);
+        return orders.map(orderMapper::toSummaryDto);
+    }
+
+    /**
+     * Lấy đơn hàng theo mã giảm giá (admin only)
+     */
+    @Transactional(readOnly = true)
+    public Page<OrderSummaryDTO> getOrdersByCoupon(Long couponId, Pageable pageable) {
+        Coupon coupon = couponRepository.findById(couponId)
+                .orElseThrow(() -> new EntityNotFoundException("Coupon not found"));
+        Page<Order> orders = orderRepository.findByCoupon(coupon, pageable);
         return orders.map(orderMapper::toSummaryDto);
     }
 
@@ -336,6 +481,14 @@ public class OrderService {
                     variant.getProduct().getSalePrice().compareTo(BigDecimal.ZERO) > 0 ?
                     variant.getProduct().getSalePrice() : variant.getProduct().getPrice();
             total = total.add(price.multiply(BigDecimal.valueOf(item.getQuantity())));
+        }
+        return total;
+    }
+
+    private BigDecimal calculateTotalItemsAmount(List<OrderItem> orderItems) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (OrderItem item : orderItems) {
+            total = total.add(item.getTotalPrice());
         }
         return total;
     }
@@ -371,6 +524,25 @@ public class OrderService {
         return orderItems;
     }
 
+    /**
+     * Khôi phục lượt sử dụng mã giảm giá khi hủy đơn hoặc xóa đơn
+     */
+    @Transactional
+    public void restoreCouponsUsage(Long orderId) {
+        List<OrderCoupon> orderCoupons = orderCouponRepository.findByOrderOrderId(orderId);
+        for (OrderCoupon orderCoupon : orderCoupons) {
+            Coupon coupon = orderCoupon.getCoupon();
+            if (coupon.getUsedCount() > 0) {
+                coupon.setUsedCount(coupon.getUsedCount() - 1);
+                couponRepository.save(coupon);
+                log.info("Restored usage count for coupon {}, new count: {}",
+                        coupon.getCode(), coupon.getUsedCount());
+            }
+        }
+        // Xóa quan hệ order-coupon
+        orderCouponRepository.deleteByOrderOrderId(orderId);
+    }
+
     private void validateStatusTransition(Order.OrderStatus currentStatus, Order.OrderStatus newStatus) {
         if (currentStatus == newStatus) {
             throw new InvalidOrderStatusException("Order is already in " + currentStatus + " status");
@@ -393,13 +565,21 @@ public class OrderService {
                 break;
 
             case SHIPPING:
-                if (newStatus != Order.OrderStatus.COMPLETED && newStatus != Order.OrderStatus.CANCELLED) {
+                if (newStatus != Order.OrderStatus.COMPLETED &&
+                        newStatus != Order.OrderStatus.CANCELLED &&
+                        newStatus != Order.OrderStatus.DELIVERY_FAILED) {
                     throw new InvalidOrderStatusException("Cannot transition from " + currentStatus + " to " + newStatus);
                 }
                 break;
 
             case CONFIRMED:
                 if (newStatus != Order.OrderStatus.PROCESSING && newStatus != Order.OrderStatus.SHIPPING) {
+                    throw new InvalidOrderStatusException("Cannot transition from " + currentStatus + " to " + newStatus);
+                }
+                break;
+
+            case DELIVERY_FAILED:
+                if (newStatus != Order.OrderStatus.SHIPPING && newStatus != Order.OrderStatus.CANCELLED) {
                     throw new InvalidOrderStatusException("Cannot transition from " + currentStatus + " to " + newStatus);
                 }
                 break;

@@ -16,14 +16,16 @@ public class CreateOrderDTO {
     @NotNull(message = "Địa chỉ giao hàng không được để trống")
     private Long addressId;
 
-    // Các variantId đã được chọn trong giỏ hàng
-    // Nếu trống, lấy tất cả các sản phẩm đã chọn (isSelected=true) trong giỏ hàng
-    private List<Long> selectedVariantIds;
-
-    // Ghi chú đơn hàng
-    private String notes;
-
+    @NotNull(message = "Phương thức vận chuyển không được để trống")
     private Long shippingMethodId;
 
     private Double totalWeight;
+
+    private List<Long> selectedVariantIds;
+
+    // Thêm mã giảm giá
+    private String couponCode;
+
+    // Thêm ghi chú đơn hàng nếu cần
+    private String orderNote;
 }

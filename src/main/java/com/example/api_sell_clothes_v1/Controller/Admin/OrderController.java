@@ -80,6 +80,17 @@ public class OrderController {
     }
 
     /**
+     * Get orders by coupon (admin)
+     */
+    @GetMapping("/coupon/{couponId}")
+    @PreAuthorize("hasAuthority('VIEW_ORDER')")
+    public ResponseEntity<Page<OrderSummaryDTO>> getOrdersByCoupon(
+            @PathVariable Long couponId,
+            @PageableDefault(page = 0, size = 10, sort = "createdAt") Pageable pageable) {
+        return ResponseEntity.ok(orderService.getOrdersByCoupon(couponId, pageable));
+    }
+
+    /**
      * Search orders (admin)
      */
     @GetMapping("/search")
@@ -138,6 +149,23 @@ public class OrderController {
         } catch (Exception e) {
             log.error("Error updating order shipping: {}", e.getMessage());
             throw new IllegalArgumentException("Lỗi khi cập nhật phương thức vận chuyển: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update coupon for an order (admin)
+     */
+    @PutMapping("/{orderId}/coupon")
+    @PreAuthorize("hasAuthority('EDIT_ORDER')")
+    public ResponseEntity<OrderResponseDTO> updateOrderCoupon(
+            @PathVariable Long orderId,
+            @RequestParam(required = false) String couponCode) {
+        try {
+            OrderResponseDTO updatedOrder = orderService.updateOrderCoupon(orderId, couponCode);
+            return ResponseEntity.ok(updatedOrder);
+        } catch (Exception e) {
+            log.error("Error updating order coupon: {}", e.getMessage());
+            throw new IllegalArgumentException("Lỗi khi cập nhật mã giảm giá: " + e.getMessage());
         }
     }
 

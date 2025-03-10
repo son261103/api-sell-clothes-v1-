@@ -1,5 +1,6 @@
 package com.example.api_sell_clothes_v1.Mapper;
 
+import com.example.api_sell_clothes_v1.DTO.Coupons.CouponDTO;
 import com.example.api_sell_clothes_v1.DTO.Orders.OrderItemDTO;
 import com.example.api_sell_clothes_v1.DTO.Orders.OrderResponseDTO;
 import com.example.api_sell_clothes_v1.DTO.Orders.OrderSummaryDTO;
@@ -8,11 +9,14 @@ import com.example.api_sell_clothes_v1.DTO.Shipping.ShippingMethodDTO;
 import com.example.api_sell_clothes_v1.DTO.UserAddress.AddressResponseDTO;
 import com.example.api_sell_clothes_v1.DTO.Users.UserResponseDTO;
 import com.example.api_sell_clothes_v1.Entity.Order;
+import com.example.api_sell_clothes_v1.Entity.OrderCoupon;
 import com.example.api_sell_clothes_v1.Entity.OrderItem;
 import com.example.api_sell_clothes_v1.Entity.Payment;
+import com.example.api_sell_clothes_v1.Repository.OrderCouponRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,6 +29,8 @@ public class OrderMapper implements EntityMapper<Order, OrderResponseDTO> {
     private final UserAddressMapper addressMapper;
     private final PaymentMapper paymentMapper;
     private final ShippingMapper shippingMapper;
+    private final CouponMapper couponMapper;
+    private final OrderCouponRepository orderCouponRepository;
 
     @Override
     public Order toEntity(OrderResponseDTO dto) {
@@ -59,6 +65,34 @@ public class OrderMapper implements EntityMapper<Order, OrderResponseDTO> {
         // Determine if the order can be cancelled
         boolean canCancel = canCancelOrder(entity);
 
+        // Map coupons and discount information
+        List<CouponDTO> coupons = new ArrayList<>();
+        BigDecimal subtotalBeforeDiscount = entity.getTotalAmount();
+        BigDecimal totalDiscount = BigDecimal.ZERO;
+
+        List<OrderCoupon> orderCoupons = orderCouponRepository.findByOrderOrderId(entity.getOrderId());
+        if (orderCoupons != null && !orderCoupons.isEmpty()) {
+            coupons = orderCoupons.stream()
+                    .map(oc -> new CouponDTO(
+                            oc.getCoupon().getCode(),
+                            oc.getCoupon().getType(),
+                            oc.getDiscountAmount()))
+                    .collect(Collectors.toList());
+
+            // Calculate total discount amount
+            totalDiscount = orderCoupons.stream()
+                    .map(OrderCoupon::getDiscountAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            // Calculate original subtotal before discount
+            subtotalBeforeDiscount = entity.getTotalAmount().add(totalDiscount)
+                    .subtract(entity.getShippingFee() != null ? entity.getShippingFee() : BigDecimal.ZERO);
+        } else {
+            // If no coupons, subtotal is just total minus shipping
+            subtotalBeforeDiscount = entity.getTotalAmount()
+                    .subtract(entity.getShippingFee() != null ? entity.getShippingFee() : BigDecimal.ZERO);
+        }
+
         return OrderResponseDTO.builder()
                 .orderId(entity.getOrderId())
                 .user(userDto)
@@ -73,6 +107,9 @@ public class OrderMapper implements EntityMapper<Order, OrderResponseDTO> {
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .canCancel(canCancel)
+                .coupons(coupons)
+                .subtotalBeforeDiscount(subtotalBeforeDiscount)
+                .totalDiscount(totalDiscount)
                 .build();
     }
 
@@ -127,6 +164,19 @@ public class OrderMapper implements EntityMapper<Order, OrderResponseDTO> {
             userId = entity.getUser().getUserId();
         }
 
+        // Get discount information
+        BigDecimal totalDiscount = BigDecimal.ZERO;
+        List<OrderCoupon> orderCoupons = orderCouponRepository.findByOrderOrderId(entity.getOrderId());
+        if (orderCoupons != null && !orderCoupons.isEmpty()) {
+            totalDiscount = orderCoupons.stream()
+                    .map(OrderCoupon::getDiscountAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+
+        // Calculate subtotal before discount
+        BigDecimal subtotalBeforeDiscount = entity.getTotalAmount().add(totalDiscount)
+                .subtract(entity.getShippingFee() != null ? entity.getShippingFee() : BigDecimal.ZERO);
+
         return OrderSummaryDTO.builder()
                 .orderId(entity.getOrderId())
                 .orderCode(orderCode)
@@ -134,6 +184,8 @@ public class OrderMapper implements EntityMapper<Order, OrderResponseDTO> {
                 .statusDescription(entity.getStatus().getDescription())
                 .totalAmount(entity.getTotalAmount())
                 .finalAmount(entity.getTotalAmount()) // Đồng bộ với frontend
+                .subtotalBeforeDiscount(subtotalBeforeDiscount)
+                .totalDiscount(totalDiscount)
                 .shippingFee(entity.getShippingFee())
                 .shippingMethodName(shippingMethodName)
                 .totalItems(totalItems)
@@ -143,6 +195,7 @@ public class OrderMapper implements EntityMapper<Order, OrderResponseDTO> {
                 .userEmail(userEmail)
                 .userId(userId)
                 .paymentStatus(paymentStatus)
+                .hasCoupon(!orderCoupons.isEmpty())
                 .build();
     }
 

@@ -25,7 +25,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 
-import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -205,6 +204,17 @@ public class SecurityConfig {
         });
     }
 
+    /**
+     * Configure endpoint permissions for Orders Coupon management
+     */
+    private void configureOrdersCouponEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.COUPON_ENDPOINTS.forEach((endpoint, permission) -> {
+            if (permission!= null) {
+                auth.requestMatchers(endpoint).hasAuthority(permission);
+            }
+        });
+    }
+
 
     /**
      * Configure basic security settings
@@ -238,6 +248,7 @@ public class SecurityConfig {
                     configureProductImageEndpoints(auth);
                     configureOrderEndpoints(auth); // Đã di chuyển xuống đây
                     configureUserEndpoints(auth);
+                    configureOrdersCouponEndpoints(auth);
                     configureCategoryEndpoints(auth);
                     configureReviewEndpoints(auth);
                     configureCartItemEndpoints(auth);

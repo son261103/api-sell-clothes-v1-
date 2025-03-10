@@ -16,18 +16,23 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class OrderSummaryDTO {
     private Long orderId;
-    private String orderCode; // Thêm mã đơn hàng
-    private BigDecimal totalAmount;
-    private BigDecimal finalAmount; // Đổi tên từ totalAmount để frontend dễ truy cập
-    private BigDecimal shippingFee;
-    private String shippingMethodName;
+    private String orderCode;
     private Order.OrderStatus status;
     private String statusDescription;
-    private Payment.PaymentStatus paymentStatus; // Thêm trạng thái thanh toán
-    private LocalDateTime createdAt;
+    private BigDecimal totalAmount;
+    private BigDecimal finalAmount; // Tương đương totalAmount, đồng bộ với frontend
+    private BigDecimal shippingFee;
+    private String shippingMethodName;
     private int totalItems;
-    private int itemCount; // Đổi tên từ totalItems để frontend dễ truy cập
-    private String userName; // Thêm tên người dùng
-    private String userEmail; // Thêm email người dùng
-    private Long userId; // Thêm ID người dùng
+    private int itemCount; // Tương đương totalItems, đồng bộ với frontend
+    private LocalDateTime createdAt;
+    private String userName;
+    private String userEmail;
+    private Long userId;
+    private Payment.PaymentStatus paymentStatus;
+
+    // Thông tin về giảm giá
+    private BigDecimal subtotalBeforeDiscount;
+    private BigDecimal totalDiscount;
+    private boolean hasCoupon;
 }

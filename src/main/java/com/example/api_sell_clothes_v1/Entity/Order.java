@@ -53,6 +53,10 @@ public class Order {
     @JoinColumn(name = "shipping_method_id")
     private ShippingMethod shippingMethod;
 
+    // Thêm mối quan hệ đến OrderCoupon
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderCoupon> orderCoupons = new ArrayList<>();
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -75,6 +79,17 @@ public class Order {
     public void setPayment(Payment payment) {
         this.payment = payment;
         payment.setOrder(this);
+    }
+
+    // Helper methods cho OrderCoupon
+    public void addOrderCoupon(OrderCoupon coupon) {
+        orderCoupons.add(coupon);
+        coupon.setOrder(this);
+    }
+
+    public void removeOrderCoupon(OrderCoupon coupon) {
+        orderCoupons.remove(coupon);
+        coupon.setOrder(null);
     }
 
     // Thêm các trường mới để hỗ trợ OTP xác nhận giao hàng

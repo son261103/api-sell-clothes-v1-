@@ -2,10 +2,12 @@ package com.example.api_sell_clothes_v1.Controller.User;
 
 import com.example.api_sell_clothes_v1.Constants.ApiPatternConstants;
 import com.example.api_sell_clothes_v1.DTO.ApiResponse;
+import com.example.api_sell_clothes_v1.DTO.Coupons.CouponValidationDTO;
 import com.example.api_sell_clothes_v1.DTO.Orders.*;
 import com.example.api_sell_clothes_v1.DTO.Shipping.ShippingEstimateDTO;
 import com.example.api_sell_clothes_v1.DTO.Shipping.ShippingMethodDTO;
 import com.example.api_sell_clothes_v1.Entity.Order;
+import com.example.api_sell_clothes_v1.Service.CouponService;
 import com.example.api_sell_clothes_v1.Service.OrderItemService;
 import com.example.api_sell_clothes_v1.Service.OrderService;
 import com.example.api_sell_clothes_v1.Service.ShippingService;
@@ -20,7 +22,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -30,6 +34,7 @@ public class UserOrderController {
     private final OrderService orderService;
     private final OrderItemService orderItemService;
     private final ShippingService shippingService;
+    private final CouponService couponService;
 
     /**
      * Tạo đơn hàng mới từ giỏ hàng
@@ -59,10 +64,35 @@ public class UserOrderController {
     public ResponseEntity<?> estimateOrderShipping(
             @RequestParam BigDecimal orderTotal,
             @RequestParam Long shippingMethodId,
-            @RequestParam(required = false) Double totalWeight) {
+            @RequestParam(required = false) Double totalWeight,
+            @RequestParam(required = false) String couponCode) {
         try {
-            ShippingEstimateDTO estimate = shippingService.estimateShipping(orderTotal, shippingMethodId, totalWeight);
-            return ResponseEntity.ok(estimate);
+            // Nếu có mã giảm giá, áp dụng giảm giá trước khi tính phí vận chuyển
+            BigDecimal finalOrderTotal = orderTotal;
+            BigDecimal discountAmount = BigDecimal.ZERO;
+
+            if (couponCode != null && !couponCode.isEmpty()) {
+                CouponValidationDTO validationResult = couponService.validateCoupon(couponCode, orderTotal);
+                if (validationResult.isValid()) {
+                    discountAmount = validationResult.getDiscountAmount();
+                    finalOrderTotal = orderTotal.subtract(discountAmount);
+                } else {
+                    // Nếu mã không hợp lệ, vẫn tiếp tục tính toán nhưng thông báo
+                    log.warn("Mã giảm giá không hợp lệ khi ước tính phí vận chuyển: {}", validationResult.getMessage());
+                }
+            }
+
+            ShippingEstimateDTO estimate = shippingService.estimateShipping(finalOrderTotal, shippingMethodId, totalWeight);
+
+            // Thêm thông tin giảm giá vào kết quả
+            Map<String, Object> result = new HashMap<>();
+            result.put("shippingEstimate", estimate);
+            result.put("originalTotal", orderTotal);
+            result.put("discountAmount", discountAmount);
+            result.put("finalTotal", finalOrderTotal.add(estimate.getShippingFee()));
+            result.put("finalTotalWithShipping", finalOrderTotal.add(estimate.getShippingFee()));
+
+            return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
             log.error("Dữ liệu không hợp lệ khi ước tính phí vận chuyển: {}", e.getMessage());
             return ResponseEntity.badRequest()
@@ -71,6 +101,81 @@ public class UserOrderController {
             log.error("Lỗi khi ước tính phí vận chuyển: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse(false, "Lỗi khi ước tính phí vận chuyển: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Kiểm tra và xác thực mã giảm giá
+     */
+    @GetMapping("/validate-coupon")
+    public ResponseEntity<?> validateCoupon(
+            @RequestParam String couponCode,
+            @RequestParam BigDecimal orderAmount) {
+        try {
+            CouponValidationDTO validationResult = couponService.validateCoupon(couponCode, orderAmount);
+            return ResponseEntity.ok(validationResult);
+        } catch (Exception e) {
+            log.error("Lỗi khi xác thực mã giảm giá: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Lỗi khi xác thực mã giảm giá: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Xem trước kết quả áp dụng mã giảm giá vào đơn hàng
+     */
+    @PostMapping("/preview-order")
+    public ResponseEntity<?> previewOrder(
+            @RequestHeader(value = "X-User-Id", required = true) Long userId,
+            @Valid @RequestBody CreateOrderDTO createDTO) {
+        try {
+            // Tính tổng tiền hàng (chưa tính mã giảm giá và phí vận chuyển)
+            BigDecimal subtotal = BigDecimal.ZERO;
+
+            // Trong thực tế, bạn sẽ lấy thông tin giỏ hàng hoặc các sản phẩm đã chọn để tính toán
+            // Đây là code mẫu, cần triển khai logic thực tế
+
+            // Kiểm tra mã giảm giá nếu có
+            BigDecimal discountAmount = BigDecimal.ZERO;
+
+            if (createDTO.getCouponCode() != null && !createDTO.getCouponCode().isEmpty()) {
+                CouponValidationDTO validationResult = couponService.validateCoupon(
+                        createDTO.getCouponCode(), subtotal);
+
+                if (validationResult.isValid()) {
+                    discountAmount = validationResult.getDiscountAmount();
+                }
+            }
+
+            // Tính phí vận chuyển
+            BigDecimal afterDiscount = subtotal.subtract(discountAmount);
+            BigDecimal shippingFee = BigDecimal.ZERO;
+
+            if (createDTO.getShippingMethodId() != null) {
+                ShippingEstimateDTO estimate = shippingService.estimateShipping(
+                        afterDiscount,
+                        createDTO.getShippingMethodId(),
+                        createDTO.getTotalWeight());
+                shippingFee = estimate.getShippingFee();
+            }
+
+            // Tổng hợp kết quả
+            Map<String, Object> result = new HashMap<>();
+            result.put("subtotal", subtotal);
+            result.put("discountAmount", discountAmount);
+            result.put("afterDiscount", afterDiscount);
+            result.put("shippingFee", shippingFee);
+            result.put("totalAmount", afterDiscount.add(shippingFee));
+
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            log.error("Dữ liệu không hợp lệ khi xem trước đơn hàng: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            log.error("Lỗi khi xem trước đơn hàng: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Lỗi khi xem trước đơn hàng: " + e.getMessage()));
         }
     }
 
@@ -191,6 +296,29 @@ public class UserOrderController {
     }
 
     /**
+     * Lấy thông tin mã giảm giá đã áp dụng cho đơn hàng
+     */
+    @GetMapping("/{orderId}/coupons")
+    public ResponseEntity<?> getOrderCoupons(
+            @RequestHeader(value = "X-User-Id", required = true) Long userId,
+            @PathVariable Long orderId) {
+        try {
+            // Kiểm tra xem đơn hàng có thuộc về người dùng không
+            OrderResponseDTO order = orderService.getUserOrderById(userId, orderId);
+            return ResponseEntity.ok(order.getCoupons());
+        } catch (IllegalArgumentException e) {
+            log.error("Dữ liệu không hợp lệ khi lấy thông tin mã giảm giá của đơn hàng: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            log.error("Lỗi khi lấy thông tin mã giảm giá của đơn hàng {} cho userId {}: {}",
+                    orderId, userId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Lỗi khi lấy thông tin mã giảm giá của đơn hàng: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Lấy danh sách sản phẩm bán chạy
      */
     @GetMapping("/bestselling")
@@ -209,15 +337,37 @@ public class UserOrderController {
      * Kiểm tra điều kiện miễn phí vận chuyển
      */
     @GetMapping("/free-shipping-check")
-    public ResponseEntity<?> checkFreeShippingEligibility(@RequestParam BigDecimal orderTotal) {
+    public ResponseEntity<?> checkFreeShippingEligibility(
+            @RequestParam BigDecimal orderTotal,
+            @RequestParam(required = false) String couponCode) {
         try {
-            boolean isEligible = orderTotal.compareTo(new BigDecimal("500000")) >= 0;
-            BigDecimal threshold = new BigDecimal("500000");
+            // Nếu có mã giảm giá, áp dụng giảm giá trước khi kiểm tra điều kiện miễn phí vận chuyển
+            BigDecimal finalOrderTotal = orderTotal;
+            BigDecimal discountAmount = BigDecimal.ZERO;
 
-            return ResponseEntity.ok(new ApiResponse(true,
-                    isEligible ?
-                            "Đơn hàng đủ điều kiện miễn phí vận chuyển" :
-                            "Đơn hàng cần thêm " + threshold.subtract(orderTotal) + " VND để được miễn phí vận chuyển"));
+            if (couponCode != null && !couponCode.isEmpty()) {
+                CouponValidationDTO validationResult = couponService.validateCoupon(couponCode, orderTotal);
+                if (validationResult.isValid()) {
+                    discountAmount = validationResult.getDiscountAmount();
+                    finalOrderTotal = orderTotal.subtract(discountAmount);
+                }
+            }
+
+            BigDecimal threshold = new BigDecimal("500000");
+            boolean isEligible = finalOrderTotal.compareTo(threshold) >= 0;
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("eligible", isEligible);
+            result.put("threshold", threshold);
+            result.put("originalTotal", orderTotal);
+            result.put("discountAmount", discountAmount);
+            result.put("finalTotal", finalOrderTotal);
+
+            if (!isEligible) {
+                result.put("amountNeeded", threshold.subtract(finalOrderTotal));
+            }
+
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Lỗi khi kiểm tra điều kiện miễn phí vận chuyển: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
