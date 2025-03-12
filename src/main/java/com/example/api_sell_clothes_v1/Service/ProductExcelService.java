@@ -89,20 +89,16 @@ public class ProductExcelService {
      * Tạo file Excel mẫu và hướng dẫn - sử dụng phương pháp đơn giản hóa
      */
     public void generateTemplatePackage(HttpServletResponse response) throws IOException {
-        // Đặt content type cho response
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment; filename=product_import_template.xlsx");
 
-        // Tạo workbook trực tiếp
         try (Workbook workbook = new XSSFWorkbook()) {
-            // Tạo các sheet
             createProductSheet(workbook);
             createVariantSheet(workbook);
             createCategoriesSheet(workbook);
             createBrandsSheet(workbook);
             createInstructionSheet(workbook);
 
-            // Ghi trực tiếp vào response
             try (OutputStream outputStream = response.getOutputStream()) {
                 workbook.write(outputStream);
                 outputStream.flush();
@@ -114,18 +110,75 @@ public class ProductExcelService {
     }
 
     /**
+     * Tạo file ZIP chứa file Excel mẫu và thư mục ảnh mẫu
+     */
+    public void generateFullTemplatePackage(HttpServletResponse response) throws IOException {
+        response.setContentType("application/zip");
+        response.setHeader("Content-Disposition", "attachment; filename=product_import_template.zip");
+
+        try (ZipOutputStream zipOut = new ZipOutputStream(response.getOutputStream())) {
+            // 1. Tạo và thêm file Excel vào ZIP
+            try (Workbook workbook = new XSSFWorkbook()) {
+                createProductSheet(workbook);
+                createVariantSheet(workbook);
+                createCategoriesSheet(workbook);
+                createBrandsSheet(workbook);
+                createInstructionSheet(workbook);
+
+                ZipEntry excelEntry = new ZipEntry("product_import.xlsx");
+                zipOut.putNextEntry(excelEntry);
+                workbook.write(zipOut);
+                zipOut.closeEntry();
+            }
+
+            // 2. Tạo thư mục Images/ và thêm ảnh mẫu
+            String[] sampleSkus = {"ATN001-S-DEN", "ATN001-M-TRG"};
+            for (String sku : sampleSkus) {
+                // Tạo thư mục con cho SKU
+                ZipEntry folderEntry = new ZipEntry("Images/" + sku + "/");
+                zipOut.putNextEntry(folderEntry);
+                zipOut.closeEntry();
+
+                // Thêm ảnh main.jpg mẫu
+                byte[] sampleImage = createSampleImage();
+                ZipEntry mainImageEntry = new ZipEntry("Images/" + sku + "/main.jpg");
+                zipOut.putNextEntry(mainImageEntry);
+                zipOut.write(sampleImage);
+                zipOut.closeEntry();
+
+                // Thêm ảnh phụ 1.jpg mẫu
+                ZipEntry secondaryImageEntry = new ZipEntry("Images/" + sku + "/1.jpg");
+                zipOut.putNextEntry(secondaryImageEntry);
+                zipOut.write(sampleImage);
+                zipOut.closeEntry();
+            }
+
+            zipOut.finish();
+            zipOut.flush();
+        } catch (Exception e) {
+            log.error("Lỗi khi tạo file ZIP template: ", e);
+            throw new IOException("Không thể tạo file ZIP template: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Hàm giả lập tạo dữ liệu ảnh mẫu
+     */
+    private byte[] createSampleImage() {
+        // Đây là dữ liệu giả lập, bạn có thể thay bằng ảnh thực tế từ resource
+        return "Sample Image Content".getBytes(StandardCharsets.UTF_8);
+    }
+
+    /**
      * Tạo hướng dẫn dạng text và gửi đến client
      */
     public void generateInstructionText(HttpServletResponse response) throws IOException {
-        // Đặt content type cho response
         response.setContentType("text/plain");
         response.setCharacterEncoding("UTF-8");
         response.setHeader("Content-Disposition", "attachment; filename=huong_dan_nhap_san_pham.txt");
 
-        // Tạo nội dung hướng dẫn
         String instructions = createInstructionText();
 
-        // Ghi trực tiếp vào response
         try (Writer writer = response.getWriter()) {
             writer.write(instructions);
             writer.flush();
@@ -141,12 +194,10 @@ public class ProductExcelService {
     private void createProductSheet(Workbook workbook) {
         Sheet sheet = workbook.createSheet("Sản Phẩm");
 
-        // Set column widths
         for (int i = 0; i < PRODUCT_HEADERS.length; i++) {
             sheet.setColumnWidth(i, 4000);
         }
 
-        // Tạo cell style cho header
         CellStyle headerStyle = workbook.createCellStyle();
         headerStyle.setFillForegroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.getIndex());
         headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -154,7 +205,6 @@ public class ProductExcelService {
         headerFont.setBold(true);
         headerStyle.setFont(headerFont);
 
-        // Create header row
         Row headerRow = sheet.createRow(0);
         for (int i = 0; i < PRODUCT_HEADERS.length; i++) {
             Cell cell = headerRow.createCell(i);
@@ -162,14 +212,12 @@ public class ProductExcelService {
             cell.setCellStyle(headerStyle);
         }
 
-        // Tạo cell style cho data
         CellStyle dataStyle = workbook.createCellStyle();
         dataStyle.setBorderBottom(BorderStyle.THIN);
         dataStyle.setBorderTop(BorderStyle.THIN);
         dataStyle.setBorderLeft(BorderStyle.THIN);
         dataStyle.setBorderRight(BorderStyle.THIN);
 
-        // Add sample data
         for (int i = 1; i <= 3; i++) {
             Row row = sheet.createRow(i);
 
@@ -201,12 +249,10 @@ public class ProductExcelService {
     private void createVariantSheet(Workbook workbook) {
         Sheet sheet = workbook.createSheet("Biến Thể");
 
-        // Set column widths
         for (int i = 0; i < VARIANT_HEADERS.length; i++) {
             sheet.setColumnWidth(i, 4000);
         }
 
-        // Tạo cell style cho header
         CellStyle headerStyle = workbook.createCellStyle();
         headerStyle.setFillForegroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.getIndex());
         headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -214,7 +260,6 @@ public class ProductExcelService {
         headerFont.setBold(true);
         headerStyle.setFont(headerFont);
 
-        // Create header row
         Row headerRow = sheet.createRow(0);
         for (int i = 0; i < VARIANT_HEADERS.length; i++) {
             Cell cell = headerRow.createCell(i);
@@ -222,14 +267,12 @@ public class ProductExcelService {
             cell.setCellStyle(headerStyle);
         }
 
-        // Tạo cell style cho data
         CellStyle dataStyle = workbook.createCellStyle();
         dataStyle.setBorderBottom(BorderStyle.THIN);
         dataStyle.setBorderTop(BorderStyle.THIN);
         dataStyle.setBorderLeft(BorderStyle.THIN);
         dataStyle.setBorderRight(BorderStyle.THIN);
 
-        // Add sample data
         String[] sizes = {"S", "M", "L", "XL"};
         String[] colors = {"Đen", "Trắng", "Xanh"};
 
@@ -251,7 +294,6 @@ public class ProductExcelService {
                     cell2.setCellValue(color);
                     cell2.setCellStyle(dataStyle);
 
-                    // SKU left empty
                     Cell cell3 = row.createCell(3);
                     cell3.setCellStyle(dataStyle);
 
@@ -269,12 +311,10 @@ public class ProductExcelService {
     private void createCategoriesSheet(Workbook workbook) {
         Sheet sheet = workbook.createSheet("Danh Sách Loại SP");
 
-        // Set column widths
         sheet.setColumnWidth(0, 2000);
         sheet.setColumnWidth(1, 6000);
         sheet.setColumnWidth(2, 6000);
 
-        // Tạo cell style cho header
         CellStyle headerStyle = workbook.createCellStyle();
         headerStyle.setFillForegroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.getIndex());
         headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -282,7 +322,6 @@ public class ProductExcelService {
         headerFont.setBold(true);
         headerStyle.setFont(headerFont);
 
-        // Create header row
         Row headerRow = sheet.createRow(0);
         Cell cell0 = headerRow.createCell(0);
         cell0.setCellValue("ID");
@@ -296,14 +335,12 @@ public class ProductExcelService {
         cell2.setCellValue("Mô Tả");
         cell2.setCellStyle(headerStyle);
 
-        // Tạo cell style cho data
         CellStyle dataStyle = workbook.createCellStyle();
         dataStyle.setBorderBottom(BorderStyle.THIN);
         dataStyle.setBorderTop(BorderStyle.THIN);
         dataStyle.setBorderLeft(BorderStyle.THIN);
         dataStyle.setBorderRight(BorderStyle.THIN);
 
-        // Add categories from database with error handling
         try {
             List<Categories> categories = categoryRepository.findAll();
             int rowNum = 1;
@@ -321,11 +358,7 @@ public class ProductExcelService {
                     nameCell.setCellStyle(dataStyle);
 
                     Cell descCell = row.createCell(2);
-                    if (category.getDescription() != null) {
-                        descCell.setCellValue(category.getDescription());
-                    } else {
-                        descCell.setCellValue("");
-                    }
+                    descCell.setCellValue(category.getDescription() != null ? category.getDescription() : "");
                     descCell.setCellStyle(dataStyle);
                 }
             }
@@ -335,9 +368,6 @@ public class ProductExcelService {
         }
     }
 
-    /**
-     * Tạo dữ liệu mẫu cho categories khi gặp lỗi
-     */
     private void createDummyCategoryData(Sheet sheet, CellStyle style) {
         String[][] dummyData = {
                 {"1", "Áo nam", "Các loại áo dành cho nam"},
@@ -364,18 +394,13 @@ public class ProductExcelService {
         }
     }
 
-    /**
-     * Tạo sheet danh sách thương hiệu
-     */
     private void createBrandsSheet(Workbook workbook) {
         Sheet sheet = workbook.createSheet("Danh Sách Thương Hiệu");
 
-        // Set column widths
         sheet.setColumnWidth(0, 2000);
         sheet.setColumnWidth(1, 6000);
         sheet.setColumnWidth(2, 6000);
 
-        // Tạo cell style cho header
         CellStyle headerStyle = workbook.createCellStyle();
         headerStyle.setFillForegroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.getIndex());
         headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -383,7 +408,6 @@ public class ProductExcelService {
         headerFont.setBold(true);
         headerStyle.setFont(headerFont);
 
-        // Create header row
         Row headerRow = sheet.createRow(0);
         Cell cell0 = headerRow.createCell(0);
         cell0.setCellValue("ID");
@@ -397,14 +421,12 @@ public class ProductExcelService {
         cell2.setCellValue("Mô Tả");
         cell2.setCellStyle(headerStyle);
 
-        // Tạo cell style cho data
         CellStyle dataStyle = workbook.createCellStyle();
         dataStyle.setBorderBottom(BorderStyle.THIN);
         dataStyle.setBorderTop(BorderStyle.THIN);
         dataStyle.setBorderLeft(BorderStyle.THIN);
         dataStyle.setBorderRight(BorderStyle.THIN);
 
-        // Add brands from database with error handling
         try {
             List<Brands> brands = brandRepository.findAll();
             int rowNum = 1;
@@ -422,11 +444,7 @@ public class ProductExcelService {
                     nameCell.setCellStyle(dataStyle);
 
                     Cell descCell = row.createCell(2);
-                    if (brand.getDescription() != null) {
-                        descCell.setCellValue(brand.getDescription());
-                    } else {
-                        descCell.setCellValue("");
-                    }
+                    descCell.setCellValue(brand.getDescription() != null ? brand.getDescription() : "");
                     descCell.setCellStyle(dataStyle);
                 }
             }
@@ -436,9 +454,6 @@ public class ProductExcelService {
         }
     }
 
-    /**
-     * Tạo dữ liệu mẫu cho brands khi gặp lỗi
-     */
     private void createDummyBrandData(Sheet sheet, CellStyle style) {
         String[][] dummyData = {
                 {"1", "Nike", "Thương hiệu thời trang thể thao"},
@@ -465,16 +480,11 @@ public class ProductExcelService {
         }
     }
 
-    /**
-     * Tạo sheet hướng dẫn
-     */
     private void createInstructionSheet(Workbook workbook) {
         Sheet sheet = workbook.createSheet("Hướng Dẫn");
 
-        // Set column width
         sheet.setColumnWidth(0, 10000);
 
-        // Tạo cell style cho title
         CellStyle titleStyle = workbook.createCellStyle();
         titleStyle.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
         titleStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -484,17 +494,14 @@ public class ProductExcelService {
         titleFont.setFontHeightInPoints((short) 14);
         titleStyle.setFont(titleFont);
 
-        // Tạo cell style cho content
         CellStyle contentStyle = workbook.createCellStyle();
         contentStyle.setWrapText(true);
 
-        // Create title
         Row titleRow = sheet.createRow(0);
         Cell titleCell = titleRow.createCell(0);
         titleCell.setCellValue("HƯỚNG DẪN NHẬP SẢN PHẨM");
         titleCell.setCellStyle(titleStyle);
 
-        // Add instructions
         String[] instructions = {
                 "1. File này chứa 4 sheet: Sản Phẩm, Biến Thể, Danh Sách Loại SP và Danh Sách Thương Hiệu.",
                 "2. Nhập thông tin sản phẩm vào sheet 'Sản Phẩm' trước. Các trường đánh dấu (*) là bắt buộc.",
@@ -514,9 +521,6 @@ public class ProductExcelService {
         }
     }
 
-    /**
-     * Tạo nội dung hướng dẫn text
-     */
     private String createInstructionText() {
         StringBuilder content = new StringBuilder();
         content.append("HƯỚNG DẪN NHẬP SẢN PHẨM BẰNG FILE EXCEL\n");
@@ -562,57 +566,43 @@ public class ProductExcelService {
         return content.toString();
     }
 
-    /**
-     * Xử lý import sản phẩm từ file ZIP chứa Excel và ảnh, với báo cáo lỗi
-     */
     public ImportResult importProductsFromExcel(MultipartFile zipFile) {
         Workbook workbook = null;
 
         try {
-            // Xử lý file ZIP và trích xuất Excel + ảnh
             ZipImportProcessor.ImportData importData = new ZipImportProcessor().processZipFile(zipFile);
             workbook = importData.getWorkbook();
 
-            // Kiểm tra workbook
             if (workbook == null) {
                 throw new FileHandlingException("Không thể đọc file Excel từ ZIP");
             }
 
-            // Tạo đối tượng báo cáo lỗi
             ExcelErrorReport errorReport = new ExcelErrorReport(workbook);
 
-            // Xử lý sheet sản phẩm
             Sheet productSheet = workbook.getSheet("Sản Phẩm");
             if (productSheet == null) {
                 throw new FileHandlingException("File Excel không chứa sheet 'Sản Phẩm'");
             }
 
-            // Xử lý sheet biến thể
             Sheet variantSheet = workbook.getSheet("Biến Thể");
             if (variantSheet == null) {
                 throw new FileHandlingException("File Excel không chứa sheet 'Biến Thể'");
             }
 
-            // Lấy danh sách categories và brands để lookup
             Map<String, Long> categoryMap = getCategoryMapByName();
             Map<String, Long> brandMap = getBrandMapByName();
 
-            // Xử lý dữ liệu sản phẩm với báo cáo lỗi
             Map<Integer, Long> productRowIdMap = processProductSheetWithValidation(productSheet, categoryMap, brandMap, errorReport);
 
-            // Xử lý dữ liệu biến thể với ảnh từ ZIP và báo cáo lỗi
             processVariantSheetWithSkuImagesAndValidation(variantSheet, productRowIdMap, importData, errorReport);
 
-            // Đánh dấu tất cả lỗi trong file Excel
             errorReport.markErrors();
 
-            // Tạo kết quả import
             ImportResult result = new ImportResult();
             result.setSuccess(!errorReport.hasErrors());
             result.setTotalErrors(errorReport.getTotalErrors());
             result.setErrorRowCount(errorReport.getErrorRowCount());
 
-            // Nếu có lỗi, trả về file Excel đã đánh dấu lỗi
             if (errorReport.hasErrors()) {
                 result.setErrorReportBytes(errorReport.toByteArray());
                 result.setMessage("Import không thành công. Có " + errorReport.getTotalErrors()
@@ -630,7 +620,6 @@ public class ProductExcelService {
             result.setMessage("Lỗi khi import sản phẩm: " + e.getMessage());
             return result;
         } finally {
-            // Đảm bảo workbook được đóng đúng cách
             if (workbook != null) {
                 try {
                     workbook.close();
@@ -641,9 +630,6 @@ public class ProductExcelService {
         }
     }
 
-    /**
-     * Lớp chứa kết quả import
-     */
     @Getter
     @Setter
     public static class ImportResult {
@@ -654,9 +640,6 @@ public class ProductExcelService {
         private byte[] errorReportBytes;
     }
 
-    /**
-     * Xử lý sheet sản phẩm với validation và báo cáo lỗi
-     */
     private Map<Integer, Long> processProductSheetWithValidation(
             Sheet productSheet,
             Map<String, Long> categoryMap,
@@ -666,12 +649,10 @@ public class ProductExcelService {
         Map<Integer, Long> productRowIdMap = new HashMap<>();
         int numRows = productSheet.getPhysicalNumberOfRows();
 
-        // Bỏ qua hàng header
         for (int i = 1; i < numRows; i++) {
             Row row = productSheet.getRow(i);
             if (row == null) continue;
 
-            // Đọc dữ liệu sản phẩm từ Excel
             String name = getCellStringValue(row.getCell(0));
             String categoryName = getCellStringValue(row.getCell(1));
             String brandName = getCellStringValue(row.getCell(2));
@@ -680,7 +661,6 @@ public class ProductExcelService {
             BigDecimal salePrice = getCellBigDecimalValue(row.getCell(5));
             String slug = getCellStringValue(row.getCell(6));
 
-            // Validate dữ liệu bắt buộc
             boolean hasError = false;
 
             if (name == null || name.isEmpty()) {
@@ -717,16 +697,13 @@ public class ProductExcelService {
                 hasError = true;
             }
 
-            // Nếu có lỗi, bỏ qua dòng này
             if (hasError) {
                 continue;
             }
 
-            // Tìm category và brand ID
             Long categoryId = categoryMap.get(categoryName);
             Long brandId = brandMap.get(brandName);
 
-            // Tạo DTO sản phẩm
             ProductCreateDTO productDTO = ProductCreateDTO.builder()
                     .name(name)
                     .categoryId(categoryId)
@@ -738,11 +715,8 @@ public class ProductExcelService {
                     .status(true)
                     .build();
 
-            // Lưu sản phẩm vào DB
             try {
                 ProductResponseDTO savedProduct = productService.createProduct(productDTO, null);
-
-                // Lưu mapping giữa row index và product ID
                 productRowIdMap.put(i, savedProduct.getProductId());
                 log.info("Đã tạo sản phẩm: {} với ID: {}", name, savedProduct.getProductId());
             } catch (Exception e) {
@@ -754,9 +728,6 @@ public class ProductExcelService {
         return productRowIdMap;
     }
 
-    /**
-     * Xử lý sheet biến thể với validation, ảnh từ ZIP và báo cáo lỗi
-     */
     private void processVariantSheetWithSkuImagesAndValidation(
             Sheet variantSheet,
             Map<Integer, Long> productRowIdMap,
@@ -768,19 +739,16 @@ public class ProductExcelService {
         Map<Integer, Long> rowToProductIdMap = new HashMap<>();
         Map<Integer, BulkProductVariantCreateDTO.VariantDetail> rowToVariantMap = new HashMap<>();
 
-        // Bỏ qua hàng header
         for (int i = 1; i < numRows; i++) {
             Row row = variantSheet.getRow(i);
             if (row == null) continue;
 
-            // Đọc dữ liệu biến thể từ Excel
             Double productRowId = getCellDoubleValue(row.getCell(0));
             String size = getCellStringValue(row.getCell(1));
             String color = getCellStringValue(row.getCell(2));
-            String sku = getCellStringValue(row.getCell(3)); // Có thể null
+            String sku = getCellStringValue(row.getCell(3));
             Integer stockQuantity = getCellIntValue(row.getCell(4));
 
-            // Validate dữ liệu bắt buộc
             boolean hasError = false;
 
             if (productRowId == null) {
@@ -809,64 +777,51 @@ public class ProductExcelService {
                 hasError = true;
             }
 
-            // Nếu có lỗi, bỏ qua dòng này
             if (hasError) {
                 continue;
             }
 
-            // Lấy product ID từ mapping
             Long productId = productRowIdMap.get(productRowId.intValue());
 
-            // Tạo đối tượng chi tiết biến thể
             BulkProductVariantCreateDTO.VariantDetail variantDetail = new BulkProductVariantCreateDTO.VariantDetail();
             variantDetail.setSize(size);
             variantDetail.setColor(color);
-            variantDetail.setSku(sku); // Có thể null, sẽ được tự động sinh
+            variantDetail.setSku(sku);
             variantDetail.setStockQuantity(stockQuantity);
 
-            // Thêm vào map để xử lý hàng loạt
             if (!productVariantsMap.containsKey(productId)) {
                 productVariantsMap.put(productId, new ArrayList<>());
             }
             productVariantsMap.get(productId).add(variantDetail);
 
-            // Lưu mapping từ row đến product ID và variant
             rowToProductIdMap.put(i, productId);
             rowToVariantMap.put(i, variantDetail);
         }
 
-        // Map để lưu SKU đã tạo cho mỗi row
         Map<Integer, String> rowToSkuMap = new HashMap<>();
 
-        // Xử lý từng sản phẩm và các biến thể của nó
         for (Map.Entry<Long, List<BulkProductVariantCreateDTO.VariantDetail>> entry : productVariantsMap.entrySet()) {
             Long productId = entry.getKey();
             List<BulkProductVariantCreateDTO.VariantDetail> variants = entry.getValue();
 
             try {
-                // Tạo đối tượng bulk create DTO
                 BulkProductVariantCreateDTO bulkDTO = new BulkProductVariantCreateDTO();
                 bulkDTO.setProductId(productId);
                 bulkDTO.setVariants(variants);
 
-                // Gọi service để tạo hàng loạt biến thể và lấy về các SKU đã tạo
                 List<String> createdSkus = productVariantService.createBulkVariants(bulkDTO);
 
-                // Cập nhật SKU cho tracking
                 for (int i = 0; i < variants.size(); i++) {
-                    // Tìm row tương ứng
                     for (Map.Entry<Integer, BulkProductVariantCreateDTO.VariantDetail> variantEntry : rowToVariantMap.entrySet()) {
                         if (variantEntry.getValue() == variants.get(i) &&
                                 productId.equals(rowToProductIdMap.get(variantEntry.getKey())) &&
                                 i < createdSkus.size()) {
-
                             rowToSkuMap.put(variantEntry.getKey(), createdSkus.get(i));
                             break;
                         }
                     }
                 }
 
-                // Xử lý ảnh cho mỗi biến thể
                 for (String sku : createdSkus) {
                     processSingleVariantImages(sku, importData, productId);
                 }
@@ -874,8 +829,6 @@ public class ProductExcelService {
                 log.info("Đã tạo {} biến thể cho sản phẩm ID: {}", variants.size(), productId);
             } catch (Exception e) {
                 log.error("Lỗi khi tạo biến thể cho sản phẩm ID {}: {}", productId, e.getMessage());
-
-                // Tìm các dòng bị lỗi để đánh dấu
                 for (Map.Entry<Integer, Long> entry2 : rowToProductIdMap.entrySet()) {
                     if (productId.equals(entry2.getValue())) {
                         errorReport.addError("Biến Thể", entry2.getKey(),
@@ -885,7 +838,6 @@ public class ProductExcelService {
             }
         }
 
-        // Báo cáo lỗi ảnh thiếu
         for (Map.Entry<Integer, String> entry : rowToSkuMap.entrySet()) {
             String sku = entry.getValue();
             int rowIndex = entry.getKey();
@@ -897,30 +849,21 @@ public class ProductExcelService {
         }
     }
 
-    /**
-     * Xử lý ảnh cho một biến thể cụ thể
-     */
     private void processSingleVariantImages(String sku, ZipImportProcessor.ImportData importData, Long productId) {
         try {
             if (importData.hasImagesForSku(sku)) {
-                // Lấy ảnh chính (main.jpg) cho biến thể
                 byte[] mainImageData = importData.getMainImageForSku(sku);
                 if (mainImageData != null) {
-                    // Tạo MultipartFile từ byte array
                     MultipartFile mainImageFile = createMultipartFile(mainImageData, "main.jpg", "image/jpeg");
-                    // Cập nhật ảnh cho biến thể
                     productVariantService.updateVariantImageBySku(sku, mainImageFile);
                 }
 
-                // Lấy các ảnh phụ và liên kết với sản phẩm
                 List<byte[]> secondaryImagesData = importData.getSecondaryImagesForSku(sku);
                 if (!secondaryImagesData.isEmpty()) {
-                    // Tìm ID của biến thể để lấy ProductID
                     ProductVariantResponseDTO variant = productVariantService.getVariantBySku(sku);
                     if (variant != null) {
                         Long variantProductId = variant.getProduct().getProductId();
 
-                        // Tạo danh sách MultipartFile cho ảnh phụ
                         List<MultipartFile> secondaryImageFiles = new ArrayList<>();
                         int imageIndex = 1;
                         for (byte[] imageData : secondaryImagesData) {
@@ -933,7 +876,6 @@ public class ProductExcelService {
                             imageIndex++;
                         }
 
-                        // Upload ảnh phụ cho sản phẩm
                         if (!secondaryImageFiles.isEmpty()) {
                             productImageService.uploadProductImages(variantProductId, secondaryImageFiles);
                         }
@@ -947,9 +889,6 @@ public class ProductExcelService {
         }
     }
 
-    /**
-     * Tạo MultipartFile từ byte array
-     */
     private MultipartFile createMultipartFile(byte[] data, String filename, String contentType) {
         return new MultipartFile() {
             @Override
@@ -997,9 +936,6 @@ public class ProductExcelService {
         };
     }
 
-    /**
-     * Lấy map kết nối tên category với ID
-     */
     private Map<String, Long> getCategoryMapByName() {
         try {
             List<Categories> categories = categoryRepository.findAll();
@@ -1008,7 +944,7 @@ public class ProductExcelService {
                     .collect(Collectors.toMap(
                             Categories::getName,
                             Categories::getCategoryId,
-                            (existing, replacement) -> existing // Nếu có duplicate, giữ giá trị đầu tiên
+                            (existing, replacement) -> existing
                     ));
         } catch (Exception e) {
             log.error("Lỗi khi lấy danh sách category: ", e);
@@ -1016,9 +952,6 @@ public class ProductExcelService {
         }
     }
 
-    /**
-     * Lấy map kết nối tên brand với ID
-     */
     private Map<String, Long> getBrandMapByName() {
         try {
             List<Brands> brands = brandRepository.findAll();
@@ -1027,7 +960,7 @@ public class ProductExcelService {
                     .collect(Collectors.toMap(
                             Brands::getName,
                             Brands::getBrandId,
-                            (existing, replacement) -> existing // Nếu có duplicate, giữ giá trị đầu tiên
+                            (existing, replacement) -> existing
                     ));
         } catch (Exception e) {
             log.error("Lỗi khi lấy danh sách brand: ", e);
@@ -1035,9 +968,6 @@ public class ProductExcelService {
         }
     }
 
-    /**
-     * Helper method để lấy giá trị chuỗi từ cell
-     */
     private String getCellStringValue(Cell cell) {
         if (cell == null) return null;
 
@@ -1046,7 +976,6 @@ public class ProductExcelService {
                 case STRING:
                     return cell.getStringCellValue();
                 case NUMERIC:
-                    // Xử lý trường hợp số nguyên
                     double numValue = cell.getNumericCellValue();
                     if (numValue == Math.floor(numValue)) {
                         return String.valueOf((long) numValue);
@@ -1073,9 +1002,6 @@ public class ProductExcelService {
         }
     }
 
-    /**
-     * Helper method để lấy giá trị số từ cell
-     */
     private Double getCellDoubleValue(Cell cell) {
         if (cell == null) return null;
 
@@ -1108,17 +1034,11 @@ public class ProductExcelService {
         }
     }
 
-    /**
-     * Helper method để lấy giá trị số nguyên từ cell
-     */
     private Integer getCellIntValue(Cell cell) {
         Double value = getCellDoubleValue(cell);
         return value != null ? value.intValue() : null;
     }
 
-    /**
-     * Helper method để lấy giá trị BigDecimal từ cell
-     */
     private BigDecimal getCellBigDecimalValue(Cell cell) {
         Double value = getCellDoubleValue(cell);
         return value != null ? BigDecimal.valueOf(value) : null;

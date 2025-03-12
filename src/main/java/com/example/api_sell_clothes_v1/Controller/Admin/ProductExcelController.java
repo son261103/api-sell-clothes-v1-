@@ -27,7 +27,7 @@ public class ProductExcelController {
     private final ProductExcelService productExcelService;
 
     /**
-     * Tải về template Excel
+     * Tải về template Excel (chỉ file Excel)
      */
     @GetMapping("/template")
     @PreAuthorize("hasAuthority('VIEW_PRODUCT')")
@@ -36,6 +36,20 @@ public class ProductExcelController {
             productExcelService.generateTemplatePackage(response);
         } catch (IOException e) {
             log.error("Lỗi khi tạo file template: ", e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Tải về file ZIP chứa template Excel và thư mục ảnh mẫu
+     */
+    @GetMapping("/full-template")
+    @PreAuthorize("hasAuthority('VIEW_PRODUCT')")
+    public void downloadFullTemplate(HttpServletResponse response) {
+        try {
+            productExcelService.generateFullTemplatePackage(response);
+        } catch (IOException e) {
+            log.error("Lỗi khi tạo file ZIP template: ", e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }
