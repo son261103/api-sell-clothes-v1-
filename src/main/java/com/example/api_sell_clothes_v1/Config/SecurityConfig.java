@@ -221,6 +221,7 @@ public class SecurityConfig {
      */
     private void configureBasicSecurity(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
         auth.requestMatchers(SecurityUrlConstants.PUBLIC_URLS).permitAll()
+                .requestMatchers("/api/v1/public/**").permitAll()
                 .requestMatchers(SecurityUrlConstants.ADMIN_URLS).hasAuthority(RoleType.ROLE_ADMIN.getCode())
                 .requestMatchers(SecurityUrlConstants.USER_URLS)
                 .hasAnyAuthority(RoleType.ROLE_CUSTOMER.getCode(), RoleType.ROLE_ADMIN.getCode());
