@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -19,4 +21,6 @@ public class ProductVariantResponseDTO {
     private Integer stockQuantity;
     private String imageUrl;
     private Boolean status;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }
