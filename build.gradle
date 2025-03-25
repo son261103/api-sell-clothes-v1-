@@ -56,13 +56,14 @@ dependencies {
 	implementation group: 'org.apache.poi', name: 'poi', version: '5.4.0'
 	implementation group: 'org.apache.poi', name: 'poi-ooxml', version: '5.4.0'
 //	redis
-	implementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-redis', version: '3.4.3'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation group: 'org.springframework.data', name: 'spring-data-redis', version: '3.4.3'
 	implementation group: 'org.springframework.boot', name: 'spring-boot-starter-websocket', version: '3.4.3'
 	implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.18.3'
 	implementation group: 'redis.clients', name: 'jedis', version: '5.2.0'
 //	websocket
 	implementation group: 'org.springframework.boot', name: 'spring-boot-starter-websocket', version: '3.4.3'
+
 }
 
 tasks.named('test') {

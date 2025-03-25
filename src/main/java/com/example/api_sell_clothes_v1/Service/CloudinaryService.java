@@ -22,7 +22,7 @@ public class CloudinaryService {
 
     // Constants for file validation
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png", "webp");
+    private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png", "webp", "avif");
     private static final Pattern PUBLIC_ID_PATTERN = Pattern.compile("/v\\d+/(.+?)\\.[^.]+$");
     private static final String RESOURCE_TYPE = "image";
 
