@@ -246,7 +246,7 @@ public class EndpointPermissionConstants {
     public static final Map<String, String> ORDER_ENDPOINTS = new HashMap<>() {{
         // User order endpoints
         put(ApiPatternConstants.API_ORDERS + "/create",
-                PermissionType.CHECKOUT_CART.getCodeName());
+                PermissionType.CHECKOUT_CART.getCodeName()); // Giữ nguyên như mã gốc
         put(ApiPatternConstants.API_ORDERS + "/{orderId}",
                 PermissionType.VIEW_ORDER.getCodeName());
         put(ApiPatternConstants.API_ORDERS,
@@ -260,23 +260,22 @@ public class EndpointPermissionConstants {
 
         // Admin order endpoints
         put(ApiPatternConstants.API_ORDERS + "/admin/{orderId}",
-                PermissionType.MANAGE_ORDER.getCodeName());
-        put(ApiPatternConstants.API_ORDERS + "/admin/list",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.VIEW_ORDER.getCodeName()); // GET: Xem chi tiết
+        put(ApiPatternConstants.API_ORDERS + "/list",
+                PermissionType.VIEW_ORDER.getCodeName()); // Xem danh sách
         put(ApiPatternConstants.API_ORDERS + "/admin/status/{status}",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.VIEW_ORDER.getCodeName()); // Xem theo trạng thái
         put(ApiPatternConstants.API_ORDERS + "/admin/search",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.VIEW_ORDER.getCodeName()); // Tìm kiếm
         put(ApiPatternConstants.API_ORDERS + "/admin/filter",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.VIEW_ORDER.getCodeName()); // Lọc
         put(ApiPatternConstants.API_ORDERS + "/admin/{orderId}/status",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.EDIT_ORDER.getCodeName()); // PUT: Cập nhật trạng thái
         put(ApiPatternConstants.API_ORDERS + "/admin/statistics",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.VIEW_ORDER.getCodeName()); // Thống kê
         put(ApiPatternConstants.API_ORDERS + "/admin/{orderId}",
-                PermissionType.MANAGE_ORDER.getCodeName());
+                PermissionType.DELETE_ORDER.getCodeName()); // DELETE: Xóa đơn hàng
     }};
-
 
     // OrderItem endpoint permissions
     public static final Map<String, String> ORDER_ITEM_ENDPOINTS = new HashMap<>() {{
@@ -463,6 +462,67 @@ public class EndpointPermissionConstants {
                 PermissionType.MANAGE_PAYMENT_HISTORY.getCodeName()); // GET: Paginated list
     }};
 
+
+    // Shipping endpoint permissions
+    public static final Map<String, String> SHIPPING_ENDPOINTS = new HashMap<>() {{
+        // User shipping endpoints
+        put(ApiPatternConstants.API_SHIPPING + "/methods",
+                PermissionType.VIEW_SHIPPING.getCodeName()); // GET: All shipping methods
+        put(ApiPatternConstants.API_SHIPPING + "/methods/{id}",
+                PermissionType.VIEW_SHIPPING.getCodeName()); // GET: Shipping method by ID
+        put(ApiPatternConstants.API_SHIPPING + "/estimate",
+                PermissionType.VIEW_CART.getCodeName()); // GET: Estimate shipping cost
+
+        // Admin shipping endpoints
+        put(ApiPatternConstants.API_SHIPPING + "/admin/methods",
+                PermissionType.MANAGE_SHIPPING.getCodeName()); // GET & POST: List and create methods
+        put(ApiPatternConstants.API_SHIPPING + "/admin/methods/{id}",
+                PermissionType.MANAGE_SHIPPING.getCodeName()); // GET, PUT, DELETE: Get, update, delete method
+        put(ApiPatternConstants.API_SHIPPING + "/admin/apply",
+                PermissionType.MANAGE_ORDER.getCodeName()); // POST: Apply shipping to order
+        put(ApiPatternConstants.API_SHIPPING + "/admin/calculate",
+                PermissionType.MANAGE_SHIPPING.getCodeName()); // GET: Calculate shipping (admin view)
+    }};
+
+
+    // Coupon endpoint permissions
+    public static final Map<String, String> COUPON_ENDPOINTS = new HashMap<>() {{
+        // Public/User coupon endpoints
+        put(ApiPatternConstants.API_PUBLIC + "/coupons",
+                PermissionType.VIEW_PRODUCT.getCodeName()); // GET: Get all available coupons
+        put(ApiPatternConstants.API_PUBLIC + "/coupons/validate",
+                PermissionType.VIEW_CART.getCodeName()); // GET: Validate a coupon
+        put(ApiPatternConstants.API_PUBLIC + "/coupons/{code}",
+                PermissionType.VIEW_PRODUCT.getCodeName()); // GET: Get coupon by code
+        put(ApiPatternConstants.API_PUBLIC + "/coupons/check/{code}",
+                PermissionType.VIEW_PRODUCT.getCodeName()); // GET: Check if coupon exists
+
+        // Admin coupon endpoints
+        put(ApiPatternConstants.API_ORDER_COUPONS,
+                PermissionType.VIEW_COUPON.getCodeName()); // GET: Get all coupons (paginated)
+        put(ApiPatternConstants.API_ORDER_COUPONS + "/search",
+                PermissionType.VIEW_COUPON.getCodeName()); // GET: Search coupons
+        put(ApiPatternConstants.API_ORDER_COUPONS + "/{couponId}",
+                PermissionType.VIEW_COUPON.getCodeName()); // GET: Get coupon by ID
+        put(ApiPatternConstants.API_ORDER_COUPONS + "/code/{code}",
+                PermissionType.VIEW_COUPON.getCodeName()); // GET: Get coupon by code
+        put(ApiPatternConstants.API_ORDER_COUPONS,
+                PermissionType.CREATE_COUPON.getCodeName()); // POST: Create new coupon
+        put(ApiPatternConstants.API_ORDER_COUPONS + "/{couponId}",
+                PermissionType.EDIT_COUPON.getCodeName()); // PUT: Update coupon
+        put(ApiPatternConstants.API_ORDER_COUPONS + "/{couponId}",
+                PermissionType.DELETE_COUPON.getCodeName()); // DELETE: Delete coupon
+        put(ApiPatternConstants.API_ORDER_COUPONS + "/{couponId}/toggle",
+                PermissionType.EDIT_COUPON.getCodeName()); // PUT: Toggle coupon status
+        put(ApiPatternConstants.API_ORDER_COUPONS + "/valid",
+                PermissionType.VIEW_COUPON.getCodeName()); // GET: Get valid coupons
+        put(ApiPatternConstants.API_ORDER_COUPONS + "/validate",
+                PermissionType.VIEW_COUPON.getCodeName()); // GET: Admin validate coupon
+        put(ApiPatternConstants.API_ORDER_COUPONS + "/statistics",
+                PermissionType.VIEW_COUPON.getCodeName()); // GET: Get coupon statistics
+        put(ApiPatternConstants.API_ORDER_COUPONS + "/public",
+                PermissionType.VIEW_COUPON.getCodeName()); // GET: Get public coupons
+    }};
 
 
 }

@@ -80,10 +80,18 @@ public enum PermissionType {
 
     // Payment History Management Permissions
     VIEW_PAYMENT_HISTORY("VIEW_PAYMENT_HISTORY", "View Payment History", "Allows USER to view their payment history", "Payment Management"),
-    MANAGE_PAYMENT_HISTORY("MANAGE_PAYMENT_HISTORY", "Manage Payment History", "Allows ADMIN to view and manage all payment history", "Payment Management");
+    MANAGE_PAYMENT_HISTORY("MANAGE_PAYMENT_HISTORY", "Manage Payment History", "Allows ADMIN to view and manage all payment history", "Payment Management"),
 
+    // Shipping Management Permissions
+    VIEW_SHIPPING("VIEW_SHIPPING_METHOD", "View Shipping Method", "Allows USER to view available shipping methods", "Shipping Management"),
+    MANAGE_SHIPPING("MANAGE_SHIPPING_METHOD", "Manage Shipping Method", "Allows ADMIN to manage shipping methods (create, edit, delete)", "Shipping Management"),
 
-
+    //    order coupons management permissions
+    CREATE_COUPON("CREATE_COUPON", "Create Coupon", "Allows ADMIN to create new coupons", "Coupon Management"),
+    EDIT_COUPON("EDIT_COUPON", "Edit Coupon", "Allows ADMIN to edit an existing coupon", "Coupon Management"),
+    DELETE_COUPON("DELETE_COUPON", "Delete Coupon", "Allows ADMIN to delete a coupon", "Coupon Management"),
+    VIEW_COUPON("VIEW_COUPON", "View Coupon", "Allows ADMIN to view coupon details", "Coupon Management"),
+    MANAGE_COUPON("MANAGE_COUPON", "Manage Coupon", "Allows ADMIN to manage all coupon details", "Coupon Management");
 
     private final String codeName;
     private final String name;

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thông báo giao lại đơn hàng</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .content {
+            padding: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px 0;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #777;
+        }
+        .highlight {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #28a745;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h2>Thông báo giao lại đơn hàng</h2>
+</div>
+<div class="content">
+    <p>Kính gửi <strong th:text="${customerName}">Quý khách</strong>,</p>
+
+    <p>Chúng tôi xin thông báo rằng đơn hàng <strong th:text="${orderNumber}">#12345</strong> của bạn đã được lên kế hoạch giao lại.</p>
+
+    <div class="highlight">
+        <p>Đội vận chuyển của chúng tôi sẽ cố gắng giao hàng lại trong thời gian sớm nhất. Bạn sẽ nhận được thông báo cụ thể về thời gian giao hàng qua SMS hoặc cuộc gọi.</p>
+    </div>
+
+    <p>Để đảm bảo việc giao hàng suôn sẻ, vui lòng:</p>
+    <ul>
+        <li>Đảm bảo địa chỉ giao hàng chính xác</li>
+        <li>Đảm bảo có người nhận hàng tại địa điểm giao hàng</li>
+        <li>Chuẩn bị số tiền chính xác để thanh toán (đối với thanh toán COD)</li>
+    </ul>
+
+    <p>Nếu bạn có bất kỳ thay đổi nào về thông tin giao hàng, vui lòng liên hệ với chúng tôi qua số hotline <strong>1900 1234</strong> càng sớm càng tốt.</p>
+
+    <p>Xin chân thành cảm ơn sự hợp tác của bạn.</p>
+</div>
+<div class="footer">
+    <p>Email này được gửi tự động. Vui lòng không trả lời email này.</p>
+    <p>Bản quyền © 2023 AURAS. Tất cả các quyền được bảo lưu.</p>
+</div>
+</body>
+</html>

@@ -14,6 +14,22 @@ import java.util.Optional;
 @Repository
 public interface ProductVariantRepository extends JpaRepository<ProductVariant, Long> {
 
+    /**
+     * Đếm số biến thể có SKU bắt đầu bằng một chuỗi
+     */
+    long countBySkuStartingWith(String skuPrefix);
+
+    /**
+     * Đếm số lượng tồn kho của tất cả biến thể của một sản phẩm
+     */
+    Integer countStockQuantityByProductProductId(Long productId);
+
+    /**
+     * Tìm biến thể có số lượng tồn kho dưới ngưỡng
+     */
+    List<ProductVariant> findByStockQuantityLessThanAndStatus(Integer threshold, Boolean status);
+
+
     // Basic queries
     List<ProductVariant> findByProductProductId(Long productId);
 

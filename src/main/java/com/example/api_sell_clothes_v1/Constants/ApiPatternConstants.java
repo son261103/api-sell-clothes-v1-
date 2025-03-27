@@ -2,6 +2,9 @@
 package com.example.api_sell_clothes_v1.Constants;
 
 public class ApiPatternConstants {
+    // Public Api URLs
+    public static final String API_PUBLIC = "/api/v1/public";
+
     // Base paths
     public static final String API_PERMISSIONS = "/api/v1/permissions";
     public static final String API_ROLES = "/api/v1/roles";
@@ -20,6 +23,10 @@ public class ApiPatternConstants {
     public static final String API_PAYMENT_METHODS = "/api/v1/payment-methods";
     public static final String API_PAYMENT = "/api/v1/payment";
     public static final String API_PAYMENT_HISTORY = "/api/v1/payment-history";
+    // order coupon
+    public static final String API_ORDER_COUPONS = "/api/v1/coupons";
+    // shipping related base paths
+    public static final String API_SHIPPING = "/api/v1/shipping-methods";
 
     // Common action patterns
     public static final String PATTERN_CREATE = "/create";
@@ -27,4 +34,6 @@ public class ApiPatternConstants {
     public static final String PATTERN_DELETE = "/delete/**";
     public static final String PATTERN_VIEW = "/view/**";
     public static final String PATTERN_LIST = "/list";
+
+
 }

@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -35,9 +36,13 @@ public class CartMapper implements EntityMapper<Carts, CartResponseDTO> {
             return null;
         }
 
-        List<CartItemDTO> cartItemDTOs = entity.getCartItems().stream()
+        // Xử lý an toàn trường hợp cartItems là null
+        List<CartItemDTO> cartItemDTOs = (entity.getCartItems() != null)
+                ? entity.getCartItems().stream()
+                .filter(item -> item != null) // Lọc bỏ các item null
                 .map(this::toCartItemDto)
-                .collect(Collectors.toList());
+                .collect(Collectors.toList())
+                : Collections.emptyList();
 
         return CartResponseDTO.builder()
                 .cartId(entity.getCartId())
@@ -52,7 +57,7 @@ public class CartMapper implements EntityMapper<Carts, CartResponseDTO> {
     @Override
     public List<Carts> toEntity(List<CartResponseDTO> dtoList) {
         if (dtoList == null) {
-            return null;
+            return Collections.emptyList();
         }
         return dtoList.stream()
                 .map(this::toEntity)
@@ -62,7 +67,7 @@ public class CartMapper implements EntityMapper<Carts, CartResponseDTO> {
     @Override
     public List<CartResponseDTO> toDto(List<Carts> entityList) {
         if (entityList == null) {
-            return null;
+            return Collections.emptyList();
         }
         return entityList.stream()
                 .map(this::toDto)
@@ -73,19 +78,21 @@ public class CartMapper implements EntityMapper<Carts, CartResponseDTO> {
      * Chuyển đổi từ CartItems entity sang CartItemDTO
      */
     public CartItemDTO toCartItemDto(CartItems cartItem) {
-        if (cartItem == null) {
-            return null;
+        if (cartItem == null || cartItem.getVariant() == null || cartItem.getVariant().getProduct() == null) {
+            return null; // Trả về null nếu dữ liệu không hợp lệ
         }
 
-        BigDecimal price = cartItem.getVariant().getProduct().getSalePrice() != null ?
-                cartItem.getVariant().getProduct().getSalePrice() : cartItem.getVariant().getProduct().getPrice();
+        BigDecimal price = cartItem.getVariant().getProduct().getSalePrice() != null
+                ? cartItem.getVariant().getProduct().getSalePrice()
+                : cartItem.getVariant().getProduct().getPrice();
 
-        BigDecimal totalPrice = price != null ?
-                price.multiply(BigDecimal.valueOf(cartItem.getQuantity())) : BigDecimal.ZERO;
+        BigDecimal totalPrice = (price != null)
+                ? price.multiply(BigDecimal.valueOf(cartItem.getQuantity()))
+                : BigDecimal.ZERO;
 
         return CartItemDTO.builder()
                 .itemId(cartItem.getItemId())
-                .cartId(cartItem.getCart().getCartId())
+                .cartId(cartItem.getCart() != null ? cartItem.getCart().getCartId() : null)
                 .variantId(cartItem.getVariant().getVariantId())
                 .productId(cartItem.getVariant().getProduct().getProductId())
                 .productName(cartItem.getVariant().getProduct().getName())
@@ -95,8 +102,9 @@ public class CartMapper implements EntityMapper<Carts, CartResponseDTO> {
                 .quantity(cartItem.getQuantity())
                 .unitPrice(price)
                 .totalPrice(totalPrice)
-                .imageUrl(cartItem.getVariant().getImageUrl() != null ?
-                        cartItem.getVariant().getImageUrl() : cartItem.getVariant().getProduct().getThumbnail())
+                .imageUrl(cartItem.getVariant().getImageUrl() != null
+                        ? cartItem.getVariant().getImageUrl()
+                        : cartItem.getVariant().getProduct().getThumbnail())
                 .stockQuantity(cartItem.getVariant().getStockQuantity())
                 .isSelected(cartItem.getIsSelected())
                 .build();

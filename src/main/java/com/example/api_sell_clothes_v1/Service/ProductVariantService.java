@@ -20,7 +20,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -30,6 +29,7 @@ public class ProductVariantService {
     private final ProductRepository productRepository;
     private final ProductVariantMapper variantMapper;
     private final ProductVariantImageService imageService;
+    private final SkuGeneratorService skuGeneratorService;
 
     private static final int LOW_STOCK_THRESHOLD = 5;
 
@@ -80,8 +80,17 @@ public class ProductVariantService {
             throw new IllegalArgumentException("Cannot create variant for inactive product");
         }
 
+        // Tạo SKU nếu chưa cung cấp
+        if (createDTO.getSku() == null || createDTO.getSku().isEmpty()) {
+            createDTO.setSku(skuGeneratorService.generateSku(
+                    product.getProductId(),
+                    createDTO.getSize(),
+                    createDTO.getColor()
+            ));
+        }
+
         // Validate SKU uniqueness
-        if (createDTO.getSku() != null && variantRepository.existsBySku(createDTO.getSku())) {
+        if (variantRepository.existsBySku(createDTO.getSku())) {
             throw new IllegalArgumentException("SKU already exists");
         }
 
@@ -180,6 +189,9 @@ public class ProductVariantService {
     }
 
 
+    /**
+     * Tạo nhiều biến thể cùng lúc với ảnh theo màu sắc
+     */
     @Transactional
     public List<ProductVariantResponseDTO> createBulkVariants(BulkProductVariantCreateDTO bulkDTO,
                                                               Map<String, MultipartFile> colorImages) {
@@ -209,7 +221,11 @@ public class ProductVariantService {
         for (BulkProductVariantCreateDTO.VariantDetail variantDetail : bulkDTO.getVariants()) {
             // Generate SKU if not provided
             if (variantDetail.getSku() == null || variantDetail.getSku().isEmpty()) {
-                String generatedSku = generateSku(product.getName(), variantDetail.getColor(), variantDetail.getSize());
+                String generatedSku = skuGeneratorService.generateSku(
+                        product.getProductId(),
+                        variantDetail.getSize(),
+                        variantDetail.getColor()
+                );
                 variantDetail.setSku(generatedSku);
             }
 
@@ -242,12 +258,88 @@ public class ProductVariantService {
         return variantMapper.toDto(savedVariants);
     }
 
-    private String generateSku(String productName, String color, String size) {
-        String baseCode = productName.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
-        String colorCode = color.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
-        String sizeCode = size.toUpperCase();
+    /**
+     * Tạo hàng loạt biến thể cho một sản phẩm
+     * @return Danh sách SKU đã tạo
+     */
+    @Transactional
+    public List<String> createBulkVariants(BulkProductVariantCreateDTO bulkDTO) {
+        // Tìm sản phẩm
+        Products product = productRepository.findById(bulkDTO.getProductId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
 
-        return String.format("%s-%s-%s", baseCode, colorCode, sizeCode);
+        if (!product.getStatus()) {
+            throw new IllegalArgumentException("Không thể tạo biến thể cho sản phẩm đã bị vô hiệu hóa");
+        }
+
+        List<ProductVariant> variants = new ArrayList<>();
+        List<String> createdSkus = new ArrayList<>();
+
+        for (BulkProductVariantCreateDTO.VariantDetail detail : bulkDTO.getVariants()) {
+            // Sinh SKU nếu chưa cung cấp
+            String sku = detail.getSku();
+            if (sku == null || sku.isEmpty()) {
+                sku = skuGeneratorService.generateSku(
+                        product.getProductId(),
+                        detail.getSize(),
+                        detail.getColor()
+                );
+            }
+
+            // Kiểm tra SKU đã tồn tại chưa
+            if (variantRepository.existsBySku(sku)) {
+                log.warn("Bỏ qua biến thể với SKU đã tồn tại: {}", sku);
+                continue;
+            }
+
+            // Tạo biến thể mới
+            ProductVariant variant = new ProductVariant();
+            variant.setProduct(product);
+            variant.setSize(detail.getSize());
+            variant.setColor(detail.getColor());
+            variant.setSku(sku);
+            variant.setStockQuantity(detail.getStockQuantity());
+            variant.setStatus(true);
+            variant.setCreatedAt(LocalDateTime.now());
+            variant.setUpdatedAt(LocalDateTime.now());
+
+            variants.add(variant);
+            createdSkus.add(sku);
+        }
+
+        // Lưu tất cả biến thể
+        if (!variants.isEmpty()) {
+            variantRepository.saveAll(variants);
+            log.info("Đã tạo {} biến thể cho sản phẩm ID: {}", variants.size(), product.getProductId());
+        }
+
+        return createdSkus;
+    }
+
+    /**
+     * Cập nhật ảnh biến thể theo SKU
+     */
+    @Transactional
+    public ProductVariantResponseDTO updateVariantImageBySku(String sku, MultipartFile imageFile) {
+        // Tìm biến thể theo SKU
+        ProductVariant variant = variantRepository.findBySku(sku)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy biến thể với SKU: " + sku));
+
+        // Xử lý upload ảnh mới
+        if (imageFile != null && !imageFile.isEmpty()) {
+            String oldImageUrl = variant.getImageUrl();
+            String newImageUrl = imageService.updateImage(imageFile, oldImageUrl);
+            variant.setImageUrl(newImageUrl);
+            variant.setUpdatedAt(LocalDateTime.now());
+
+            // Lưu biến thể
+            ProductVariant updatedVariant = variantRepository.save(variant);
+            log.info("Đã cập nhật ảnh cho biến thể với SKU: {}", sku);
+
+            return variantMapper.toDto(updatedVariant);
+        }
+
+        return variantMapper.toDto(variant);
     }
 
     /**

@@ -32,7 +32,7 @@ public class Carts {
     private String sessionId;
 
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<CartItems> cartItems = new ArrayList<>();
+    private List<CartItems> cartItems = new ArrayList<>(); 
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

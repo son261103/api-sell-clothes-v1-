@@ -216,5 +216,10 @@ public class UserAddressService {
         if (!address.getUser().getUserId().equals(userId)) {
             throw new IllegalArgumentException("Address does not belong to user");
         }
+
+        // Check if phone number exists
+        if (address.getPhoneNumber() == null || address.getPhoneNumber().isEmpty()) {
+            throw new IllegalArgumentException("Address must have a phone number for order delivery");
+        }
     }
 }

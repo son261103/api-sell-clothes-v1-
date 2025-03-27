@@ -18,7 +18,9 @@ public class ProductThumbnailService {
     private static final String[] ALLOWED_CONTENT_TYPES = {
             "image/jpeg",
             "image/png",
-            "image/webp"
+            "image/webp",
+            "image/avif",  // Allow AVIF for thumbnail images
+            "image/heif"  // Allow HEIF for thumbnail images
     };
 
     /**

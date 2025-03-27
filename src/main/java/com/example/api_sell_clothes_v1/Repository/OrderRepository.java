@@ -1,6 +1,8 @@
 package com.example.api_sell_clothes_v1.Repository;
 
+import com.example.api_sell_clothes_v1.Entity.Coupon;
 import com.example.api_sell_clothes_v1.Entity.Order;
+import com.example.api_sell_clothes_v1.Entity.ShippingMethod;
 import com.example.api_sell_clothes_v1.Entity.Users;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -85,4 +87,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // Check if an address is used in any orders
     boolean existsByAddressAddressId(Long addressId);
+
+    @Query("SELECT o FROM Order o JOIN o.orderCoupons oc WHERE oc.coupon = :coupon")
+    Page<Order> findByCoupon(@Param("coupon") Coupon coupon, Pageable pageable);
+
+
+    // Added for shipping method support
+    Page<Order> findByShippingMethod(ShippingMethod shippingMethod, Pageable pageable);
+
 }

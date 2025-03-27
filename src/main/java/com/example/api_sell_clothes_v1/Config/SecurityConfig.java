@@ -25,7 +25,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 
-import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -134,9 +133,7 @@ public class SecurityConfig {
      */
     private void configureOrderEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
         EndpointPermissionConstants.ORDER_ENDPOINTS.forEach((endpoint, permission) -> {
-            if (permission != null) { // Thêm kiểm tra null
                 auth.requestMatchers(endpoint).hasAuthority(permission);
-            }
         });
     }
 
@@ -196,6 +193,27 @@ public class SecurityConfig {
         });
     }
 
+    /**
+     * Configure endpoint permissions for Shipping management
+     */
+    private void configureShippingEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.SHIPPING_ENDPOINTS.forEach((endpoint, permission) -> {
+            if (permission != null) {
+                auth.requestMatchers(endpoint).hasAuthority(permission);
+            }
+        });
+    }
+
+    /**
+     * Configure endpoint permissions for Orders Coupon management
+     */
+    private void configureOrdersCouponEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        EndpointPermissionConstants.COUPON_ENDPOINTS.forEach((endpoint, permission) -> {
+            if (permission!= null) {
+                auth.requestMatchers(endpoint).hasAuthority(permission);
+            }
+        });
+    }
 
 
     /**
@@ -203,6 +221,7 @@ public class SecurityConfig {
      */
     private void configureBasicSecurity(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
         auth.requestMatchers(SecurityUrlConstants.PUBLIC_URLS).permitAll()
+                .requestMatchers("/api/v1/public/**").permitAll()
                 .requestMatchers(SecurityUrlConstants.ADMIN_URLS).hasAuthority(RoleType.ROLE_ADMIN.getCode())
                 .requestMatchers(SecurityUrlConstants.USER_URLS)
                 .hasAnyAuthority(RoleType.ROLE_CUSTOMER.getCode(), RoleType.ROLE_ADMIN.getCode());
@@ -219,31 +238,29 @@ public class SecurityConfig {
 
                 // Configure authorization
                 .authorizeHttpRequests(auth -> {
-                    // Configure basic security settings
+                    // Configure basic security settings FIRST
                     configureBasicSecurity(auth);
 
-                    // Configure detailed endpoint permissions
+                    // THEN configure detailed endpoint permissions
                     configurePermissionEndpoints(auth);
                     configureRoleEndpoints(auth);
                     configureProductEndpoints(auth);
                     configureProductVariantEndpoints(auth);
                     configureProductImageEndpoints(auth);
-                    configureOrderEndpoints(auth);
+                    configureOrderEndpoints(auth); // Đã di chuyển xuống đây
                     configureUserEndpoints(auth);
+                    configureOrdersCouponEndpoints(auth);
                     configureCategoryEndpoints(auth);
                     configureReviewEndpoints(auth);
                     configureCartItemEndpoints(auth);
                     configureCartEndpoints(auth);
-                    configureOrderItemEndpoints(auth);     // Thêm mới
-                    configureUserAddressEndpoints(auth);   // Thêm mới
-                    // Configure Payment Method endpoints
+                    configureOrderItemEndpoints(auth);
+                    configureUserAddressEndpoints(auth);
                     configurePaymentMethodEndpoints(auth);
-                    // Configure Payment endpoints
                     configurePaymentEndpoints(auth);
-
-
-                    // Configure Payment History endpoints
+                    configureShippingEndpoints(auth);
                     configurePaymentHistoryEndpoints(auth);
+
                     // Any other request needs authentication
                     auth.anyRequest().authenticated();
                 })
@@ -259,6 +276,7 @@ public class SecurityConfig {
 
         return http.build();
     }
+
 
     @Bean
     public AuthenticationProvider authenticationProvider() {

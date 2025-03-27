@@ -18,11 +18,15 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthController {
-    private static final Logger log = LoggerFactory.getLogger(EmailService.class);
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     private final AuthenticationService authService;
     private final OtpService otpService;
     private final RefreshTokenService refreshTokenService;
@@ -152,17 +156,6 @@ public class AuthController {
         }
     }
 
-//    @PostMapping("/refresh-token")
-//    public ResponseEntity<?> verifyAccessToken(@Valid @RequestBody RefreshTokenDTO refreshTokenDTO) {
-//        try {
-//            TokenResponseDTO tokenResponse = authService.verifyNewAccess(refreshTokenDTO);
-//            return ResponseEntity.ok(tokenResponse);
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-//                    .body(new ApiResponse(false, e.getMessage()));
-//        }
-//    }
-
     @PostMapping("/refresh-token")
     public ResponseEntity<?> verifyAccessToken(HttpServletRequest request) {
         try {
@@ -179,14 +172,39 @@ public class AuthController {
                 }
             }
 
-            // Kiểm tra refresh token có tồn tại không
-            if (refreshToken == null) {
-                log.warn("No refresh token found in cookie");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new ApiResponse(false, "No refresh token found in cookie"));
+            // Kiểm tra refresh token trong request body nếu không có trong cookie
+            if (refreshToken == null && request.getContentType() != null &&
+                    request.getContentType().contains("application/json")) {
+                try {
+                    // Read refresh token from request body if available
+                    RefreshTokenDTO refreshTokenDTO = new RefreshTokenDTO();
+                    String requestBody = request.getReader().lines().reduce("", (accumulator, actual) -> accumulator + actual);
+
+                    if (requestBody != null && !requestBody.isEmpty()) {
+                        // Simple extraction for "refreshToken" field from JSON
+                        int startIndex = requestBody.indexOf("\"refreshToken\":\"");
+                        if (startIndex > -1) {
+                            startIndex += "\"refreshToken\":\"".length();
+                            int endIndex = requestBody.indexOf("\"", startIndex);
+                            if (endIndex > -1) {
+                                refreshToken = requestBody.substring(startIndex, endIndex);
+                                log.info("Found refresh token in request body");
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Error parsing request body for refresh token: {}", e.getMessage());
+                }
             }
 
-            // Tạo DTO từ refresh token lấy được từ cookie
+            // Kiểm tra refresh token có tồn tại không
+            if (refreshToken == null) {
+                log.warn("No refresh token found in cookie or request body");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ApiResponse(false, "No refresh token found"));
+            }
+
+            // Tạo DTO từ refresh token lấy được
             RefreshTokenDTO refreshTokenDTO = new RefreshTokenDTO();
             refreshTokenDTO.setRefreshToken(refreshToken);
 
@@ -194,7 +212,7 @@ public class AuthController {
             TokenResponseDTO tokenResponse = authService.verifyNewAccess(refreshTokenDTO);
 
             // Log token mới được tạo
-            log.info("New access token: {}", tokenResponse.getAccessToken());
+            log.info("New access token created successfully");
 
             return ResponseEntity.ok(tokenResponse);
         } catch (Exception e) {
@@ -203,17 +221,6 @@ public class AuthController {
                     .body(new ApiResponse(false, e.getMessage()));
         }
     }
-
-//    @PostMapping("/refresh-token")
-//    public ResponseEntity<?> refreshToken(@Valid @RequestBody RefreshTokenDTO refreshTokenDTO) {
-//        try {
-//            TokenResponseDTO tokenResponse = authService.refreshToken(refreshTokenDTO);
-//            return ResponseEntity.ok(tokenResponse);
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-//                    .body(new ApiResponse(false, e.getMessage()));
-//        }
-//    }
 
     @PostMapping("/resend-otp")
     public ResponseEntity<?> resendOtp(@RequestParam String email) {
@@ -312,13 +319,22 @@ public class AuthController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody ChangePasswordWithOtpDTO changePasswordDTO) {
         try {
+            // Thêm null check
+            if (userDetails == null || userDetails.getUser() == null) {
+                return ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body(new ApiResponse(false, "User not authenticated"));
+            }
+
             ApiResponse response = authService.changePasswordWithOtp(
                     userDetails.getUser().getUserId(),
                     changePasswordDTO
             );
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error changing password: " + e.getMessage());
+            return ResponseEntity
+                    .badRequest()
+                    .body(new ApiResponse(false, "Error changing password: " + e.getMessage()));
         }
     }
 
@@ -326,13 +342,21 @@ public class AuthController {
      * Get user profile
      */
     @GetMapping("/profile")
-    public ResponseEntity<UserProfileDTO> getUserProfile(
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
+    public ResponseEntity<?> getUserProfile(@AuthenticationPrincipal CustomUserDetails userDetails) {
         try {
+            if (userDetails == null || userDetails.getUser() == null) {
+                log.error("No authenticated user found in request");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ApiResponse(false, "No authenticated user found"));
+            }
+
+            log.info("Fetching profile for user: {}", userDetails.getUser().getUserId());
             UserProfileDTO profile = authService.getUserProfile(userDetails.getUser().getUserId());
             return ResponseEntity.ok(profile);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error fetching user profile: " + e.getMessage());
+            log.error("Error fetching user profile: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse(false, "Error fetching user profile: " + e.getMessage()));
         }
     }
 
@@ -340,17 +364,89 @@ public class AuthController {
      * Update user profile
      */
     @PutMapping("/profile")
-    public ResponseEntity<UserProfileDTO> updateUserProfile(
+    public ResponseEntity<?> updateUserProfile(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody UserProfileDTO profileDTO) {
         try {
-            UserProfileDTO updatedProfile = authService.updateUserProfile(
-                    userDetails.getUser().getUserId(),
-                    profileDTO
-            );
-            return ResponseEntity.ok(updatedProfile);
+            // Validate authentication
+            if (userDetails == null || userDetails.getUser() == null) {
+                log.error("No authenticated user found in profile update request");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ApiResponse(false, "No authenticated user found"));
+            }
+
+            log.info("Processing profile update for user: {}", userDetails.getUser().getUserId());
+
+            // Validate date of birth if provided
+            if (profileDTO.getDateOfBirth() != null) {
+                try {
+                    // Try parsing the date to ensure it's valid
+                    LocalDate dateOfBirth = null;
+
+                    // Handle multiple date formats
+                    try {
+                        dateOfBirth = LocalDate.parse(profileDTO.getDateOfBirth().toString());
+                    } catch (DateTimeParseException e1) {
+                        try {
+                            // Try alternate format (yyyy-MM-dd)
+                            dateOfBirth = LocalDate.parse(profileDTO.getDateOfBirth().toString(),
+                                    DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                        } catch (DateTimeParseException e2) {
+                            log.error("Invalid date format: {}", profileDTO.getDateOfBirth());
+                            return ResponseEntity.badRequest()
+                                    .body(new ApiResponse(false, "Invalid date format for date of birth"));
+                        }
+                    }
+
+                    // Check if date is in the future
+                    if (dateOfBirth != null && dateOfBirth.isAfter(LocalDate.now())) {
+                        log.error("Future date provided for date of birth: {}", dateOfBirth);
+                        return ResponseEntity.badRequest()
+                                .body(new ApiResponse(false, "Date of birth cannot be in the future"));
+                    }
+
+                    // Check if date is too far in the past (e.g., 120+ years ago)
+                    LocalDate minValidDate = LocalDate.now().minusYears(120);
+                    if (dateOfBirth != null && dateOfBirth.isBefore(minValidDate)) {
+                        log.error("Date too far in past: {}", dateOfBirth);
+                        return ResponseEntity.badRequest()
+                                .body(new ApiResponse(false, "Date of birth is too far in the past"));
+                    }
+
+                } catch (Exception e) {
+                    log.error("Error validating date of birth: {}", e.getMessage());
+                    return ResponseEntity.badRequest()
+                            .body(new ApiResponse(false, "Invalid date format: " + e.getMessage()));
+                }
+            }
+
+            // Validate phone number format if provided
+            if (profileDTO.getPhone() != null && !profileDTO.getPhone().trim().isEmpty()) {
+                // Simple validation for numeric phone format
+                if (!profileDTO.getPhone().matches("^\\d+$")) {
+                    log.error("Invalid phone number format: {}", profileDTO.getPhone());
+                    return ResponseEntity.badRequest()
+                            .body(new ApiResponse(false, "Invalid phone number format"));
+                }
+            }
+
+            // Process the update
+            try {
+                UserProfileDTO updatedProfile = authService.updateUserProfile(
+                        userDetails.getUser().getUserId(),
+                        profileDTO
+                );
+                log.info("Profile updated successfully for user: {}", userDetails.getUser().getUserId());
+                return ResponseEntity.ok(updatedProfile);
+            } catch (Exception e) {
+                log.error("Error in service layer while updating profile: {}", e.getMessage(), e);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(new ApiResponse(false, "Error updating profile: " + e.getMessage()));
+            }
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error updating user profile: " + e.getMessage());
+            log.error("Unexpected error in profile update controller: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Unexpected error: " + e.getMessage()));
         }
     }
 }

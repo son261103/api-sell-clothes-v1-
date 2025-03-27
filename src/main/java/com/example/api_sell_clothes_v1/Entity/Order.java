@@ -49,6 +49,14 @@ public class Order {
     @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private Payment payment;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shipping_method_id")
+    private ShippingMethod shippingMethod;
+
+    // Thêm mối quan hệ đến OrderCoupon
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderCoupon> orderCoupons = new ArrayList<>();
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -73,13 +81,40 @@ public class Order {
         payment.setOrder(this);
     }
 
+    // Helper methods cho OrderCoupon
+    public void addOrderCoupon(OrderCoupon coupon) {
+        orderCoupons.add(coupon);
+        coupon.setOrder(this);
+    }
+
+    public void removeOrderCoupon(OrderCoupon coupon) {
+        orderCoupons.remove(coupon);
+        coupon.setOrder(null);
+    }
+
+    // Thêm các trường mới để hỗ trợ OTP xác nhận giao hàng
+    @Column
+    private String deliveryOtp;
+
+    @Column
+    private LocalDateTime deliveryOtpExpiry;
+
+    @Column
+    private String deliveryNote;
+
+    // Hỗ trợ cho quản lý trạng thái từ chối nhận hàng
+    @Column
+    private String rejectionReason;
+
+
     public enum OrderStatus {
         PENDING("Chờ xác nhận"),
         CONFIRMED("Đã xác nhận"),
         SHIPPING("Đang giao hàng"),
         COMPLETED("Đã hoàn thành"),
         CANCELLED("Đã hủy"),
-        PROCESSING("Đang xuất kho");
+        PROCESSING("Đang xuất kho"),
+        DELIVERY_FAILED("Giao hàng thất bại");   // Giao hàng thất bại
 
         private final String description;
 
