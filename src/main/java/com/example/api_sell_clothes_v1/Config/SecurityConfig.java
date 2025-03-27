@@ -2,8 +2,10 @@ package com.example.api_sell_clothes_v1.Config;
 
 import com.example.api_sell_clothes_v1.Constants.*;
 import com.example.api_sell_clothes_v1.Enums.Types.RoleType;
+import com.example.api_sell_clothes_v1.Security.CustomOAuth2UserService;
 import com.example.api_sell_clothes_v1.Security.CustomUserDetailsService;
 import com.example.api_sell_clothes_v1.Security.JwtAuthenticationFilter;
+import com.example.api_sell_clothes_v1.Security.OAuth2AuthenticationSuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,7 +37,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final CustomUserDetailsService userDetailsService;
-
+    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
     /**
      * Configure endpoint permissions for Permission management
@@ -133,7 +135,7 @@ public class SecurityConfig {
      */
     private void configureOrderEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
         EndpointPermissionConstants.ORDER_ENDPOINTS.forEach((endpoint, permission) -> {
-                auth.requestMatchers(endpoint).hasAuthority(permission);
+            auth.requestMatchers(endpoint).hasAuthority(permission);
         });
     }
 
@@ -209,7 +211,7 @@ public class SecurityConfig {
      */
     private void configureOrdersCouponEndpoints(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
         EndpointPermissionConstants.COUPON_ENDPOINTS.forEach((endpoint, permission) -> {
-            if (permission!= null) {
+            if (permission != null) {
                 auth.requestMatchers(endpoint).hasAuthority(permission);
             }
         });
@@ -228,7 +230,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, CustomOAuth2UserService customOAuth2UserService) throws Exception {
         http
                 // Disable CSRF
                 .csrf(AbstractHttpConfigurer::disable)
@@ -236,8 +238,21 @@ public class SecurityConfig {
                 // Enable CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
+                // Configure OAuth2 login
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)
+                        )
+                        .successHandler(oAuth2AuthenticationSuccessHandler)
+                        .failureUrl("/api/v1/auth/oauth2/error")
+                )
+
                 // Configure authorization
                 .authorizeHttpRequests(auth -> {
+                    // Add Google OAuth endpoints to public URLs
+                    auth.requestMatchers("/api/v1/auth/google/**").permitAll();
+                    auth.requestMatchers("/api/v1/auth/oauth2/**").permitAll();
+
                     // Configure basic security settings FIRST
                     configureBasicSecurity(auth);
 
@@ -247,7 +262,7 @@ public class SecurityConfig {
                     configureProductEndpoints(auth);
                     configureProductVariantEndpoints(auth);
                     configureProductImageEndpoints(auth);
-                    configureOrderEndpoints(auth); // Đã di chuyển xuống đây
+                    configureOrderEndpoints(auth);
                     configureUserEndpoints(auth);
                     configureOrdersCouponEndpoints(auth);
                     configureCategoryEndpoints(auth);

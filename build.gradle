@@ -63,8 +63,12 @@ dependencies {
 	implementation group: 'redis.clients', name: 'jedis', version: '5.2.0'
 //	websocket
 	implementation group: 'org.springframework.boot', name: 'spring-boot-starter-websocket', version: '3.4.3'
-
+// o2auth
+	implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.2.RELEASE")
+	implementation("com.google.api-client:google-api-client:2.7.2")
+	implementation("org.springframework.boot:spring-boot-starter-oauth2-client:3.4.4")
 }
+
 
 tasks.named('test') {
 	useJUnitPlatform()
